@@ -10,6 +10,7 @@ from geometry_msgs.msg import Point, PoseStamped, PointStamped
 from sensor_msgs import point_cloud2
 from sensor_msgs.msg import PointField
 from std_msgs.msg import Header
+import time
 
 class optimal_control:
     def __init__(self):
@@ -28,6 +29,7 @@ class optimal_control:
         # Main loop
         rate = rospy.Rate(10.0)
         while not rospy.is_shutdown():
+            print (f'Publish new data on {time.time()}')
             self.pointc_publisher.publish(pcl)
             rate.sleep()
 
