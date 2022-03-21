@@ -27,11 +27,11 @@ class optimal_control:
 
         pcl = self.convert_point_cloud_msg(x, y)
         # Main loop
-        rate = rospy.Rate(10.0)
+        rate = rospy.Rate(1.0)
         while not rospy.is_shutdown():
             seconds = time.time()
             local_time = time.ctime(seconds)
-            print("Local time:", local_time)
+            print("Printed new pcl on time:", local_time)
             self.pointc_publisher.publish(pcl)
             rate.sleep()
 
