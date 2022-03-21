@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import numpy as np
 import sys
 import copy
 import rospy
@@ -7,11 +7,18 @@ import moveit_commander
 import moveit_msgs.msg
 import geometry_msgs.msg
 from math import pi
+import ros_numpy
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 import pickle
 from scipy.spatial.transform import Rotation as R
-
+from sensor_msgs.msg import PointCloud2
+from geometry_msgs.msg import Point, PoseStamped, PointStamped
+from sensor_msgs import point_cloud2
+from rospy.numpy_msg import numpy_msg
+from rospy_tutorials.msg import Floats
+from std_msgs.msg import Float32MultiArray
+import open3d as o3d
 
 
 ## END_SUB_TUTORIAL
@@ -45,12 +52,12 @@ class MoveGroupPythonIntefaceTutorial(object):
 
     def __init__(self):
         super(MoveGroupPythonIntefaceTutorial, self).__init__()
+        self.pcd_array = None
+        self.theta = None
 
-        ## BEGIN_SUB_TUTORIAL setup
-        ##
         ## First initialize `moveit_commander`_ and a `rospy`_ node:
         moveit_commander.roscpp_initialize(sys.argv)
-        rospy.init_node('move_group_python_interface_tutorial', anonymous=True)
+        rospy.init_node('trajectory_to_arm', anonymous=True)
 
         ## Instantiate a `RobotCommander`_ object. Provides information such as the robot's
         ## kinematic model and the robot's current joint states
@@ -61,12 +68,7 @@ class MoveGroupPythonIntefaceTutorial(object):
         ## surrounding world:
         scene = moveit_commander.PlanningSceneInterface()
 
-        ## Instantiate a `MoveGroupCommander`_ object.  This object is an interface
-        ## to a planning group (group of joints).  In this tutorial the group is the primary
-        ## arm joints in the Panda robot, so we set the group's name to "panda_arm".
-        ## If you are using a different robot, change this value to the name of your robot
-        ## arm planning group.
-        ## This interface can be used to plan and execute motions:
+        # define ABB ROBOT - ABB - irb1200_7_70
         group_name = "manipulator"
         move_group = moveit_commander.MoveGroupCommander(group_name)
 
@@ -75,12 +77,9 @@ class MoveGroupPythonIntefaceTutorial(object):
         display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
                                                        moveit_msgs.msg.DisplayTrajectory,
                                                        queue_size=20)
+        rospy.Subscriber('initial_path_pcl', PointCloud2, self.callback)
+        rospy.Subscriber('theta_array', Float32MultiArray, self.callback_theta)
 
-        ## END_SUB_TUTORIAL
-
-        ## BEGIN_SUB_TUTORIAL basic_info
-        ##
-        ## Getting Basic Information
         ## ^^^^^^^^^^^^^^^^^^^^^^^^^
         # We can get the name of the reference frame for this robot:
         planning_frame = move_group.get_planning_frame()
@@ -94,13 +93,6 @@ class MoveGroupPythonIntefaceTutorial(object):
         group_names = robot.get_group_names()
         # print "============ Available Planning Groups:", robot.get_group_names()
 
-        # Sometimes for debugging it is useful to print the entire state of the
-        # robot:
-        # print "============ Printing robot state"
-        # print robot.get_current_state()
-        # print ""
-        ## END_SUB_TUTORIAL
-
         # Misc variables
         self.box_name = ''
         self.robot = robot
@@ -110,6 +102,18 @@ class MoveGroupPythonIntefaceTutorial(object):
         self.planning_frame = planning_frame
         self.eef_link = eef_link
         self.group_names = group_names
+
+    def callback(self, points):
+        self.pointcloud2_to_pcd(points)
+
+    def callback_theta(self, theta):
+        self.theta = np.asarray(theta.data)
+
+    def pointcloud2_to_pcd(self, pcl):
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(
+            ros_numpy.point_cloud2.pointcloud2_to_xyz_array(pcl))
+        self.pcd_array = np.asarray(pcd.points)
 
     def go_to_joint_state(self):
         # Copy class variables to local variables to make the web tutorials more clear.
@@ -126,11 +130,12 @@ class MoveGroupPythonIntefaceTutorial(object):
         # We can get the joint values from the group and adjust some of the values:
         joint_goal = move_group.get_current_joint_values()
         joint_goal[0] = 0
-        joint_goal[1] = 0 #-pi / 4
+        # joint_goal[0] = pi/2
+        joint_goal[1] = 0  # -pi / 4
         joint_goal[2] = 0
-        joint_goal[3] = 0 #  -pi / 2
+        joint_goal[3] = 0  # -pi / 2
         joint_goal[4] = 0
-        joint_goal[5] = 0 # pi / 3
+        joint_goal[5] = 0  # pi / 3
         # joint_goal[6] = 0
 
         # The go command can be called with joint values, poses, or without any
@@ -190,8 +195,10 @@ class MoveGroupPythonIntefaceTutorial(object):
     def plan_cartesian_path(self, scale=1):
 
         with open('data_py2.pkl', 'rb') as f:
-            data = pickle.load(f)
-        data = data.T
+            data2 = pickle.load(f)
+        data2 = data2.T
+        data = np.copy(self.pcd_array)
+        theta = np.copy(self.theta)
         # Copy class variables to local variables to make the web tutorials more clear.
         # In practice, you should use the class variables directly unless you have a good
         # reason not to.
@@ -208,15 +215,26 @@ class MoveGroupPythonIntefaceTutorial(object):
         waypoints = []
         wpose = move_group.get_current_pose().pose
         for count, line in enumerate(data):
-            wpose.position.z = line[1]
-            wpose.position.x = -line[0]
-            r = R.from_euler('y', 90 + (line[2]-180), degrees=True)
+            wpose.position.x = line[0]
+            wpose.position.y = line[1]
+            wpose.position.z = line[2]
+
+            # r = R.from_euler('y', 90 + (theta[count] - 180), degrees=True)
+            # quat = r.as_quat()
+            # wpose.orientation.x = wpose.orientation.x
+            # wpose.orientation.y = quat[1]
+            # wpose.orientation.z = wpose.orientation.z
+            # wpose.orientation.w = quat[3]
+            # h = R.from_quat([wpose.orientation.x, wpose.orientation.y, wpose.orientation.z, wpose.orientation.w])
+            # h = R.from_quat([0, 0, np.sin(np.pi / 4), np.cos(np.pi / 4)])
+            # h = h.as_matrix()
+            #TODO: find how to doubles between quenterions
+            r = R.from_euler('y', 90 + (theta[count] - 180), degrees=True)
             quat = r.as_quat()
             wpose.orientation.x = wpose.orientation.x
             wpose.orientation.y = quat[1]
             wpose.orientation.z = wpose.orientation.z
             wpose.orientation.w = quat[3]
-
             waypoints.append(copy.deepcopy(wpose))
 
         # wpose.position.z -= scale * 0.1  # First move up (z)
@@ -236,7 +254,7 @@ class MoveGroupPythonIntefaceTutorial(object):
         # for this tutorial.
         (plan, fraction) = move_group.compute_cartesian_path(
             waypoints,  # waypoints to follow
-            0.01,  # eef_step
+            0.1,  # eef_step
             20.0)  # jump_threshold
 
         # Note: We are just planning, not asking move_group to actually move the robot yet:
@@ -329,98 +347,6 @@ class MoveGroupPythonIntefaceTutorial(object):
         return False
         ## END_SUB_TUTORIAL
 
-    def add_box(self, timeout=4):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
-        box_name = self.box_name
-        scene = self.scene
-
-        ## BEGIN_SUB_TUTORIAL add_box
-        ##
-        ## Adding Objects to the Planning Scene
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        ## First, we will create a box in the planning scene at the location of the left finger:
-        box_pose = geometry_msgs.msg.PoseStamped()
-        box_pose.header.frame_id = "panda_leftfinger"
-        box_pose.pose.orientation.w = 1.0
-        box_pose.pose.position.z = 0.07  # slightly above the end effector
-        box_name = "box"
-        scene.add_box(box_name, box_pose, size=(0.1, 0.1, 0.1))
-
-        ## END_SUB_TUTORIAL
-        # Copy local variables back to class variables. In practice, you should use the class
-        # variables directly unless you have a good reason not to.
-        self.box_name = box_name
-        return self.wait_for_state_update(box_is_known=True, timeout=timeout)
-
-    def attach_box(self, timeout=4):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
-        box_name = self.box_name
-        robot = self.robot
-        scene = self.scene
-        eef_link = self.eef_link
-        group_names = self.group_names
-
-        ## BEGIN_SUB_TUTORIAL attach_object
-        ##
-        ## Attaching Objects to the Robot
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        ## Next, we will attach the box to the Panda wrist. Manipulating objects requires the
-        ## robot be able to touch them without the planning scene reporting the contact as a
-        ## collision. By adding link names to the ``touch_links`` array, we are telling the
-        ## planning scene to ignore collisions between those links and the box. For the Panda
-        ## robot, we set ``grasping_group = 'hand'``. If you are using a different robot,
-        ## you should change this value to the name of your end effector group name.
-        grasping_group = 'hand'
-        touch_links = robot.get_link_names(group=grasping_group)
-        scene.attach_box(eef_link, box_name, touch_links=touch_links)
-        ## END_SUB_TUTORIAL
-
-        # We wait for the planning scene to update.
-        return self.wait_for_state_update(box_is_attached=True, box_is_known=False, timeout=timeout)
-
-    def detach_box(self, timeout=4):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
-        box_name = self.box_name
-        scene = self.scene
-        eef_link = self.eef_link
-
-        ## BEGIN_SUB_TUTORIAL detach_object
-        ##
-        ## Detaching Objects from the Robot
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        ## We can also detach and remove the object from the planning scene:
-        scene.remove_attached_object(eef_link, name=box_name)
-        ## END_SUB_TUTORIAL
-
-        # We wait for the planning scene to update.
-        return self.wait_for_state_update(box_is_known=True, box_is_attached=False, timeout=timeout)
-
-    def remove_box(self, timeout=4):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
-        box_name = self.box_name
-        scene = self.scene
-
-        ## BEGIN_SUB_TUTORIAL remove_object
-        ##
-        ## Removing Objects from the Planning Scene
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        ## We can remove the box from the world.
-        scene.remove_world_object(box_name)
-
-        ## **Note:** The object must be detached before we can remove it from the world
-        ## END_SUB_TUTORIAL
-
-        # We wait for the planning scene to update.
-        return self.wait_for_state_update(box_is_attached=False, box_is_known=False, timeout=timeout)
-
 
 def main():
     try:
@@ -430,26 +356,12 @@ def main():
         tutorial.go_to_joint_state()
 
         # tutorial.go_to_pose_goal()
+        if tutorial.pcd_array is not None and tutorial.theta is not None:
+            cartesian_plan, fraction = tutorial.plan_cartesian_path()
 
-        cartesian_plan, fraction = tutorial.plan_cartesian_path()
+            tutorial.display_trajectory(cartesian_plan)
 
-        tutorial.display_trajectory(cartesian_plan)
-
-
-        tutorial.execute_plan(cartesian_plan)
-
-        tutorial.add_box()
-
-        tutorial.attach_box()
-
-
-        cartesian_plan, fraction = tutorial.plan_cartesian_path(scale=-1)
-        tutorial.execute_plan(cartesian_plan)
-
-        tutorial.detach_box()
-
-
-        tutorial.remove_box()
+            tutorial.execute_plan(cartesian_plan)
 
 
     except rospy.ROSInterruptException:
@@ -459,4 +371,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    while True:
+        main()

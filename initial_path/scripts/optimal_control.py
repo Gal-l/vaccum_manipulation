@@ -9,6 +9,9 @@ from sensor_msgs.msg import PointCloud2
 from geometry_msgs.msg import Point, PoseStamped, PointStamped
 from sensor_msgs import point_cloud2
 from sensor_msgs.msg import PointField
+from std_msgs.msg import Float32MultiArray
+from rospy.numpy_msg import numpy_msg
+from rospy_tutorials.msg import Floats
 from std_msgs.msg import Header
 import time
 
@@ -16,6 +19,7 @@ class optimal_control:
     def __init__(self):
         rospy.init_node('initial_path_node')
         self.pointc_publisher = rospy.Publisher("/initial_path_pcl", PointCloud2, queue_size=1)
+        self.theta_publisher = rospy.Publisher("/theta_array", Float32MultiArray, queue_size=10)
         # https://www.youtube.com/watch?v=egQAKdJsu7E
         # https://apmonitor.com/wiki/index.php/Main/GekkoPythonOptimization
         self.m = GEKKO()  # initialize the object
@@ -31,8 +35,10 @@ class optimal_control:
         while not rospy.is_shutdown():
             seconds = time.time()
             local_time = time.ctime(seconds)
-            print("Printed new pcl on time:", local_time)
+            print("Published new pcl on time:", local_time)
             self.pointc_publisher.publish(pcl)
+            temp = Float32MultiArray(data=list(np.float32(theta)))
+            self.theta_publisher.publish(temp)
             rate.sleep()
 
 
@@ -130,11 +136,14 @@ class optimal_control:
         with open('data_py3.pkl', 'wb') as f:
             pickle.dump(data, f)
         pickle.dump(data, open("data_py2.pkl", "wb"), protocol=2)
+        print("saved pickle files")
         return x, y, theta, nt
 
     @staticmethod
     def convert_point_cloud_msg(x, z):
-        x = -x
+        # y = -x
+        # x = np.zeros(len(x))
+        x = - x
         y = np.zeros(len(x))
         xyz_arr = np.column_stack((x.T, y.T))
         xyz_arr = np.column_stack((xyz_arr, z.T))
