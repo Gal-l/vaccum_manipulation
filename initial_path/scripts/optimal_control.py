@@ -1,21 +1,36 @@
+#!/usr/bin/env python
+
 from gekko import GEKKO
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 import pickle
-
-
+import rospy
+from sensor_msgs.msg import PointCloud2
+from geometry_msgs.msg import Point, PoseStamped, PointStamped
+from sensor_msgs import point_cloud2
+from sensor_msgs.msg import PointField
+from std_msgs.msg import Header
 
 class optimal_control:
     def __init__(self):
+        rospy.init_node('initial_path_node')
+        self.pointc_publisher = rospy.Publisher("/initial_path_pcl", PointCloud2, queue_size=1)
         # https://www.youtube.com/watch?v=egQAKdJsu7E
         # https://apmonitor.com/wiki/index.php/Main/GekkoPythonOptimization
         self.m = GEKKO()  # initialize the object
         self.show = False
-        self.live_show = True
+        self.live_show = False
         x, y, theta, nt = self.set_conditions()
         if self.live_show:
             self.live_plotter(x, y, theta, nt)
+
+        pcl = self.convert_point_cloud_msg(x, y)
+        # Main loop
+        rate = rospy.Rate(10.0)
+        while not rospy.is_shutdown():
+            self.pointc_publisher.publish(pcl)
+            rate.sleep()
+
 
     def set_conditions(self):
         mass = 1  # object mass
@@ -112,6 +127,26 @@ class optimal_control:
             pickle.dump(data, f)
         pickle.dump(data, open("data_py2.pkl", "wb"), protocol=2)
         return x, y, theta, nt
+
+    @staticmethod
+    def convert_point_cloud_msg(x, z):
+        x = -x
+        y = np.zeros(len(x))
+        xyz_arr = np.column_stack((x.T, y.T))
+        xyz_arr = np.column_stack((xyz_arr, z.T))
+        fields = [PointField('x', 0, PointField.FLOAT32, 1),
+                  PointField('y', 4, PointField.FLOAT32, 1),
+                  PointField('z', 8, PointField.FLOAT32, 1),
+                  PointField('intensity', 12, PointField.FLOAT32, 1)]
+
+        header = Header()
+        header.frame_id = "base_link"
+        header.stamp = rospy.Time.now()
+        temp = xyz_arr[:, 2]
+        points = np.column_stack((xyz_arr, temp.T))
+
+        pc2 = point_cloud2.create_cloud(header, fields, points)
+        return pc2
 
     @staticmethod
     def live_plotter(x, y, theta, nt):
