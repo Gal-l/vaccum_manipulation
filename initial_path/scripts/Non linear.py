@@ -1,8 +1,6 @@
 from gekko import GEKKO
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-
 
 def getxy():
     # https://www.youtube.com/watch?v=egQAKdJsu7E
