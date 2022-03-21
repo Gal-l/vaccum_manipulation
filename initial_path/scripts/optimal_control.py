@@ -30,7 +30,8 @@ class optimal_control:
         rate = rospy.Rate(10.0)
         while not rospy.is_shutdown():
             seconds = time.time()
-            print (f'Publish new data on {time.ctime(seconds)()}')
+            local_time = time.ctime(seconds)
+            print("Local time:", local_time)
             self.pointc_publisher.publish(pcl)
             rate.sleep()
 
