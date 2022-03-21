@@ -1,0 +1,6 @@
+<!-- Publish tf between ABB base_link frame to camera frame http://wiki.ros.org/tf#static_transform_publisher -->
+<launch>
+    <!-- static_transform_publisher x y z qx qy qz qw frame_id child_frame_id  period_in_ms  -->
+    <!-- <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0.26537008 -0.63611119  1.10418933  0.68390801  0.72946482 -0.00239844 -0.00743076 camera_depth_optical_frame base_link 0.001" /> -->
+    <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0.618, -0.2045, 1.112  -0.6839387679417731, -0.7294976268046155, 0.0023985478669598646, -0.007431094189510968 base_link camera_depth_optical_frame 0.001" />
+</launch>

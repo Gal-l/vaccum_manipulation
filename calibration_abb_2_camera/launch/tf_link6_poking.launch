@@ -1,0 +1,7 @@
+<!-- Publish tf between link6 frame to aruco frame http://wiki.ros.org/tf#static_transform_publisher -->
+<launch>
+    <!-- static_transform_publisher x y z qx qy qz qw frame_id child_frame_id  period_in_ms  -->
+    <!-- <node pkg="tf" type="static_transform_publisher" name="link6_broadcaster" args="0.1 0 0 0.6186882, 0.3426798, 0.6182107, 0.3429445  link_6 marker_frame 0.001" /> -->
+    <!-- <node pkg="tf" type="static_transform_publisher" name="link6_broadcaster" args="0.1 0 0 0, 0, 0, 1  link_6 marker_frame 0.001" /> -->
+    <node pkg="tf" type="static_transform_publisher" name="link6_broadcaster" args="0.195 0 0 0.7071081, 0, 0.7071055, 0  link_6 poking_frame 0.001" />
+</launch>

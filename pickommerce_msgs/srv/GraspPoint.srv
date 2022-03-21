@@ -1,0 +1,3 @@
+sensor_msgs/PointCloud2 pc
+---
+geometry_msgs/PoseStamped grasp_point
