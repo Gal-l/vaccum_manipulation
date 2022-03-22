@@ -16,6 +16,7 @@ from std_msgs.msg import Header
 import time
 
 class optimal_control:
+
     def __init__(self):
         rospy.init_node('initial_path_node')
         self.pointc_publisher = rospy.Publisher("/initial_path_pcl", PointCloud2, queue_size=1)
