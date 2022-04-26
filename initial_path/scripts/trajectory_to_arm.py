@@ -8,15 +8,13 @@ import moveit_msgs.msg
 import geometry_msgs.msg
 from math import pi
 import ros_numpy
+from moveit_msgs.msg import RobotState ,RobotTrajectory
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 import pickle
 from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import PointCloud2
 from geometry_msgs.msg import Point, PoseStamped, PointStamped
-from sensor_msgs import point_cloud2
-from rospy.numpy_msg import numpy_msg
-from rospy_tutorials.msg import Floats
 from std_msgs.msg import Float32MultiArray
 import open3d as o3d
 
@@ -74,6 +72,7 @@ class MoveGroupPythonIntefaceTutorial(object):
 
         ## Create a `DisplayTrajectory`_ ROS publisher which is used to display
         ## trajectories in Rviz:
+        self.pose_publisher = rospy.Publisher("/grasp_point", PoseStamped, queue_size=1)
         display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
                                                        moveit_msgs.msg.DisplayTrajectory,
                                                        queue_size=20)
@@ -129,8 +128,8 @@ class MoveGroupPythonIntefaceTutorial(object):
         ## thing we want to do is move it to a slightly better configuration.
         # We can get the joint values from the group and adjust some of the values:
         joint_goal = move_group.get_current_joint_values()
-        joint_goal[0] = 0
-        # joint_goal[0] = pi/2
+        # joint_goal[0] = 0
+        joint_goal[0] = pi / 2
         joint_goal[1] = 0  # -pi / 4
         joint_goal[2] = 0
         joint_goal[3] = 0  # -pi / 2
@@ -151,46 +150,46 @@ class MoveGroupPythonIntefaceTutorial(object):
         current_joints = move_group.get_current_joint_values()
         return all_close(joint_goal, current_joints, 0.01)
 
-    def go_to_pose_goal(self):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
-        move_group = self.move_group
-
-        ## BEGIN_SUB_TUTORIAL plan_to_pose
-        ##
-        ## Planning to a Pose Goal
-        ## ^^^^^^^^^^^^^^^^^^^^^^^
-        ## We can plan a motion for this group to a desired pose for the
-        ## end-effector:
-        current_pose = self.move_group.get_current_pose().pose
-        pose_goal = geometry_msgs.msg.Pose()
-        pose_goal.orientation.w = 1.0
-        pose_goal.position.x = 0.6
-        pose_goal.position.y = 0.0
-        pose_goal.position.z = 0.8
-        pose_goal.orientation.x = current_pose.orientation.x
-        pose_goal.orientation.y = current_pose.orientation.y
-        pose_goal.orientation.z = current_pose.orientation.z
-        pose_goal.orientation.w = current_pose.orientation.w
-
-        move_group.set_pose_target(pose_goal)
-
-        ## Now, we call the planner to compute the plan and execute it.
-        plan = move_group.go(wait=True)
-        # Calling `stop()` ensures that there is no residual movement
-        move_group.stop()
-        # It is always good to clear your targets after planning with poses.
-        # Note: there is no equivalent function for clear_joint_value_targets()
-        move_group.clear_pose_targets()
-
-        ## END_SUB_TUTORIAL
-
-        # For testing:
-        # Note that since this section of code will not be included in the tutorials
-        # we use the class variable rather than the copied state variable
-        current_pose = self.move_group.get_current_pose().pose
-        return all_close(pose_goal, current_pose, 0.01)
+    # def go_to_pose_goal(self):
+    #     # Copy class variables to local variables to make the web tutorials more clear.
+    #     # In practice, you should use the class variables directly unless you have a good
+    #     # reason not to.
+    #     move_group = self.move_group
+    #
+    #     ## BEGIN_SUB_TUTORIAL plan_to_pose
+    #     ##
+    #     ## Planning to a Pose Goal
+    #     ## ^^^^^^^^^^^^^^^^^^^^^^^
+    #     ## We can plan a motion for this group to a desired pose for the
+    #     ## end-effector:
+    #     current_pose = self.move_group.get_current_pose().pose
+    #     pose_goal = geometry_msgs.msg.Pose()
+    #     pose_goal.orientation.w = 1.0
+    #     pose_goal.position.x = 0.6
+    #     pose_goal.position.y = 0.0
+    #     pose_goal.position.z = 0.8
+    #     pose_goal.orientation.x = current_pose.orientation.x
+    #     pose_goal.orientation.y = current_pose.orientation.y
+    #     pose_goal.orientation.z = current_pose.orientation.z
+    #     pose_goal.orientation.w = current_pose.orientation.w
+    #
+    #     move_group.set_pose_target(pose_goal)
+    #
+    #     ## Now, we call the planner to compute the plan and execute it.
+    #     plan = move_group.go(wait=True)
+    #     # Calling `stop()` ensures that there is no residual movement
+    #     move_group.stop()
+    #     # It is always good to clear your targets after planning with poses.
+    #     # Note: there is no equivalent function for clear_joint_value_targets()
+    #     move_group.clear_pose_targets()
+    #
+    #     ## END_SUB_TUTORIAL
+    #
+    #     # For testing:
+    #     # Note that since this section of code will not be included in the tutorials
+    #     # we use the class variable rather than the copied state variable
+    #     current_pose = self.move_group.get_current_pose().pose
+    #     return all_close(pose_goal, current_pose, 0.01)
 
     def plan_cartesian_path(self, scale=1):
 
@@ -214,6 +213,11 @@ class MoveGroupPythonIntefaceTutorial(object):
         ##
         waypoints = []
         wpose = move_group.get_current_pose().pose
+        wpose_publish = move_group.get_current_pose()
+        self.pose_publisher.publish(wpose_publish)
+        theta -= 180
+        phi = R.from_quat([wpose.orientation.x, wpose.orientation.y, wpose.orientation.z, wpose.orientation.w])
+        phi_m = phi.as_dcm()  # as_matrix for older version
         for count, line in enumerate(data):
             wpose.position.x = line[0]
             wpose.position.y = line[1]
@@ -228,12 +232,17 @@ class MoveGroupPythonIntefaceTutorial(object):
             # h = R.from_quat([wpose.orientation.x, wpose.orientation.y, wpose.orientation.z, wpose.orientation.w])
             # h = R.from_quat([0, 0, np.sin(np.pi / 4), np.cos(np.pi / 4)])
             # h = h.as_matrix()
-            #TODO: find how to doubles between quenterions
-            r = R.from_euler('y', 90 + (theta[count] - 180), degrees=True)
-            quat = r.as_quat()
-            wpose.orientation.x = wpose.orientation.x
+            # TODO: find how to doubles between quenterions
+            r = R.from_euler('y', np.deg2rad(theta[count]), degrees=False).as_dcm()
+            rotate_matrix = R.from_dcm(np.dot(phi_m, r))
+            quat = rotate_matrix.as_quat()
+            # wpose.orientation.x = wpose.orientation.x
+            # wpose.orientation.y = quat[1]
+            # wpose.orientation.z = wpose.orientation.z
+            # wpose.orientation.w = quat[3]
+            wpose.orientation.x = quat[0]
             wpose.orientation.y = quat[1]
-            wpose.orientation.z = wpose.orientation.z
+            wpose.orientation.z = quat[2]
             wpose.orientation.w = quat[3]
             waypoints.append(copy.deepcopy(wpose))
 
@@ -257,8 +266,22 @@ class MoveGroupPythonIntefaceTutorial(object):
             0.1,  # eef_step
             20.0)  # jump_threshold
 
+        #    https://github.com/ros-planning/moveit/issues/24
+        for i,data in enumerate(plan.joint_trajectory.points):
+            plan.joint_trajectory.points[i].velocities=tuple([0,0,0,0,0,0])
+            plan.joint_trajectory.points[i].accelerations=tuple([0,0,0,0,0,0])
+            plan.joint_trajectory.points[i].time_from_start.nsecs=0
+            plan.joint_trajectory.points[i].time_from_start.secs=0
+        scale = 0.8
+        new_plan = self.move_group.retime_trajectory( self.robot.get_current_state(),
+                                                    plan,
+                                                    velocity_scaling_factor = 1.0*scale,
+                                                    acceleration_scaling_factor =1.0*scale,
+                                                    algorithm = "iterative_spline_parameterization" )
+
         # Note: We are just planning, not asking move_group to actually move the robot yet:
-        return plan, fraction
+        v = np.array([i.velocities for i in new_plan.joint_trajectory.points])
+        return new_plan, fraction
 
         ## END_SUB_TUTORIAL
 
@@ -346,6 +369,23 @@ class MoveGroupPythonIntefaceTutorial(object):
         # If we exited the while loop without returning then we timed out
         return False
         ## END_SUB_TUTORIAL
+
+    def convert_to_pose_msg(self, translation, rotation):
+        pose_msg = PoseStamped()
+
+        pose_msg.header.seq = 1
+        pose_msg.header.stamp = rospy.Time.now()
+        pose_msg.header.frame_id = "base_link"
+
+        # pose_msg.pose.position.x = translation[0]
+        # pose_msg.pose.position.y = translation[1]
+        # pose_msg.pose.position.z = translation[2]
+        #
+        # pose_msg.pose.orientation.x = rotation[0]
+        # pose_msg.pose.orientation.y = rotation[1]
+        # pose_msg.pose.orientation.z = rotation[2]
+        # pose_msg.pose.orientation.w = rotation[3]
+        return pose_msg
 
 
 def main():

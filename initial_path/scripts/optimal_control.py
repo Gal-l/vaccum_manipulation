@@ -32,7 +32,7 @@ class optimal_control:
 
         pcl = self.convert_point_cloud_msg(x, y)
         # Main loop
-        rate = rospy.Rate(1.0)
+        rate = rospy.Rate(10.0)
         while not rospy.is_shutdown():
             seconds = time.time()
             local_time = time.ctime(seconds)
@@ -142,10 +142,10 @@ class optimal_control:
 
     @staticmethod
     def convert_point_cloud_msg(x, z):
-        # y = -x
-        # x = np.zeros(len(x))
-        x = - x
-        y = np.zeros(len(x))
+        y = -x
+        x = np.zeros(len(x))
+        # x = - x
+        # y = np.zeros(len(x))
         xyz_arr = np.column_stack((x.T, y.T))
         xyz_arr = np.column_stack((xyz_arr, z.T))
         fields = [PointField('x', 0, PointField.FLOAT32, 1),
