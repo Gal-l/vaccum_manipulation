@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /MotionPlanning1
+        - /Axes1
       Splitter Ratio: 0.5170649886131287
     Tree Height: 246
   - Class: rviz/Help
@@ -222,7 +223,7 @@ Visualization Manager:
       Length: 0.20000000298023224
       Name: Axes
       Radius: 0.019999999552965164
-      Reference Frame: link_6
+      Reference Frame: tool0
       Value: true
     - Alpha: 1
       Axes Length: 0.10000000149011612
@@ -290,7 +291,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 4.195971488952637
+      Distance: 3.2025694847106934
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -305,10 +306,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.04479723051190376
+      Pitch: 0.30979716777801514
       Target Frame: base_link
       Value: XYOrbit (rviz)
-      Yaw: 1.1817800998687744
+      Yaw: 2.3467893600463867
     Saved: ~
 Window Geometry:
   Displays:
