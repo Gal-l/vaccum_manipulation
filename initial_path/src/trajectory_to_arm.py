@@ -9,7 +9,7 @@ import moveit_msgs.msg
 import geometry_msgs.msg
 from math import pi
 import ros_numpy
-from moveit_msgs.msg import RobotState ,RobotTrajectory
+from moveit_msgs.msg import RobotState, RobotTrajectory
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 import pickle
@@ -18,6 +18,7 @@ from sensor_msgs.msg import PointCloud2
 from geometry_msgs.msg import Point, PoseStamped, PointStamped
 from std_msgs.msg import Float32MultiArray
 import open3d as o3d
+
 
 def all_close(goal, actual, tolerance):
     """
@@ -50,7 +51,14 @@ class MoveGroupPythonIntefaceTutorial(object):
         self.pcd_array = None
         self.theta = None
 
-        ## First initialize `moveit_commander`_ and a `rospy`_ node:
+        self.resart_only = "true"
+        args = rospy.myargv(argv=sys.argv)
+        if len(args) != 2:
+            print "Error: no args provided"
+            # sys.exit()
+        else:
+            self.resart_only = args[1]
+            ## First initialize `moveit_commander`_ and a `rospy`_ node:
         moveit_commander.roscpp_initialize(sys.argv)
         rospy.init_node('trajectory_to_arm', anonymous=True)
 
@@ -76,13 +84,11 @@ class MoveGroupPythonIntefaceTutorial(object):
         rospy.Subscriber('initial_path_pcl', PointCloud2, self.callback)
         rospy.Subscriber('theta_array', Float32MultiArray, self.callback_theta)
 
-                # We can get the name of the reference frame for this robot:
+        # We can get the name of the reference frame for this robot:
         planning_frame = move_group.get_planning_frame()
-        # print "============ Planning frame: %s" % planning_frame
 
         # We can also print the name of the end-effector link for this group:
         eef_link = move_group.get_end_effector_link()
-        # print "============ End effector link: %s" % eef_link
 
         # We can get a list of all the groups in the robot:
         group_names = robot.get_group_names()
@@ -98,26 +104,6 @@ class MoveGroupPythonIntefaceTutorial(object):
         self.eef_link = eef_link
         self.group_names = group_names
 
-        self.add_cage_to_scene()
-
-    def add_cage_to_scene(self):
-
-        cage_pose = PoseStamped()
-
-        cage_pose.header.frame_id = "base_link"
-
-        cage_pose.pose.orientation.x, cage_pose.pose.orientation.y, cage_pose.pose.orientation.z, cage_pose.pose.orientation.w = 0.0005629, -0.707388, -0.706825, 0.0005633
-
-        cage_pose.pose.position.x, cage_pose.pose.position.y, cage_pose.pose.position.z = 1.02, -1.71, -0.74
-
-        cage_name = "cage"
-
-        pkg_path = rospkg.RosPack().get_path('initial_path')
-
-        rospy.sleep(0.5)
-
-        self.scene.add_mesh(cage_name, cage_pose, '{}/meshes/cage.stl'.format(pkg_path), (0.001, 0.001, 0.001))
-
     def callback(self, points):
         self.pointcloud2_to_pcd(points)
 
@@ -130,28 +116,19 @@ class MoveGroupPythonIntefaceTutorial(object):
             ros_numpy.point_cloud2.pointcloud2_to_xyz_array(pcl))
         self.pcd_array = np.asarray(pcd.points)
 
-    def go_to_joint_state(self):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
+    def restart_arm(self):
+        print "Restart The Arm Position ..."
         move_group = self.move_group
-
-        ## BEGIN_SUB_TUTORIAL plan_to_joint_state
-        ##
-        ## Planning to a Joint Goal
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^
-        ## The Panda's zero configuration is at a `singularity <https://www.quora.com/Robotics-What-is-meant-by-kinematic-singularity>`_ so the first
-        ## thing we want to do is move it to a slightly better configuration.
-        # We can get the joint values from the group and adjust some of the values:
+        wpose = move_group.get_current_pose().pose
+        # Get the joint values from the group and adjust some of the values:
         joint_goal = move_group.get_current_joint_values()
-        # joint_goal[0] = 0
+
         joint_goal[0] = pi / 2
-        joint_goal[1] = 0  # -pi / 4
+        joint_goal[1] = 0
         joint_goal[2] = 0
-        joint_goal[3] = 0  # -pi / 2
+        joint_goal[3] = 0
         joint_goal[4] = 0
-        joint_goal[5] = 0  # pi / 3
-        # joint_goal[6] = 0
+        joint_goal[5] = 0
 
         # The go command can be called with joint values, poses, or without any
         # parameters if you have already set the pose or joint target for the group
@@ -160,59 +137,29 @@ class MoveGroupPythonIntefaceTutorial(object):
         # Calling ``stop()`` ensures that there is no residual movement
         move_group.stop()
 
-        ## END_SUB_TUTORIAL
-
         # For testing:
         current_joints = move_group.get_current_joint_values()
         return all_close(joint_goal, current_joints, 0.01)
+        print "Arm Position Has Been Restarted !"
 
-    # def go_to_pose_goal(self):
-    #     # Copy class variables to local variables to make the web tutorials more clear.
-    #     # In practice, you should use the class variables directly unless you have a good
-    #     # reason not to.
-    #     move_group = self.move_group
-    #
-    #     ## BEGIN_SUB_TUTORIAL plan_to_pose
-    #     ##
-    #     ## Planning to a Pose Goal
-    #     ## ^^^^^^^^^^^^^^^^^^^^^^^
-    #     ## We can plan a motion for this group to a desired pose for the
-    #     ## end-effector:
-    #     current_pose = self.move_group.get_current_pose().pose
-    #     pose_goal = geometry_msgs.msg.Pose()
-    #     pose_goal.orientation.w = 1.0
-    #     pose_goal.position.x = 0.6
-    #     pose_goal.position.y = 0.0
-    #     pose_goal.position.z = 0.8
-    #     pose_goal.orientation.x = current_pose.orientation.x
-    #     pose_goal.orientation.y = current_pose.orientation.y
-    #     pose_goal.orientation.z = current_pose.orientation.z
-    #     pose_goal.orientation.w = current_pose.orientation.w
-    #
-    #     move_group.set_pose_target(pose_goal)
-    #
-    #     ## Now, we call the planner to compute the plan and execute it.
-    #     plan = move_group.go(wait=True)
-    #     # Calling `stop()` ensures that there is no residual movement
-    #     move_group.stop()
-    #     # It is always good to clear your targets after planning with poses.
-    #     # Note: there is no equivalent function for clear_joint_value_targets()
-    #     move_group.clear_pose_targets()
-    #
-    #     ## END_SUB_TUTORIAL
-    #
-    #     # For testing:
-    #     # Note that since this section of code will not be included in the tutorials
-    #     # we use the class variable rather than the copied state variable
-    #     current_pose = self.move_group.get_current_pose().pose
-    #     return all_close(pose_goal, current_pose, 0.01)
+    def restart_cartezian(self):
 
-    def plan_cartesian_path(self, scale=1):
+        waypoints = []
+        wpose = self.move_group.get_current_pose().pose
+        wpose.position.x, wpose.position.y, wpose.position.z = 0, 0.433017658097, 0.791097679131
+        wpose.orientation.x, wpose.orientation.y, wpose.orientation.z,\
+        wpose.orientation.w = -0.499986331332, 0.500035592038, 0.499986733259, 0.499991341666
+        waypoints.append(copy.deepcopy(wpose))
 
-        with open('data_py2.pkl', 'rb') as f:
-            data2 = pickle.load(f)
-        data2 = data2.T
-        data = np.copy(self.pcd_array)
+        (plan, fraction) = self.move_group.compute_cartesian_path(
+            waypoints, 0.01, 0.0  # waypoints to follow  # eef_step
+        )  # jump_threshold
+
+        return plan, fraction
+
+    def calculate_trajectory(self, scale=1):
+        print "Calculate The trajectory"
+        trajectory_2d = np.copy(self.pcd_array)
         theta = np.copy(self.theta)
         # Copy class variables to local variables to make the web tutorials more clear.
         # In practice, you should use the class variables directly unless you have a good
@@ -234,74 +181,45 @@ class MoveGroupPythonIntefaceTutorial(object):
         theta -= 180
         phi = R.from_quat([wpose.orientation.x, wpose.orientation.y, wpose.orientation.z, wpose.orientation.w])
         phi_m = phi.as_dcm()  # as_matrix for older version
-        for count, line in enumerate(data):
+        for count, line in enumerate(trajectory_2d):
             wpose.position.x = line[0]
             wpose.position.y = line[1]
             wpose.position.z = line[2]
 
-            # r = R.from_euler('y', 90 + (theta[count] - 180), degrees=True)
-            # quat = r.as_quat()
-            # wpose.orientation.x = wpose.orientation.x
-            # wpose.orientation.y = quat[1]
-            # wpose.orientation.z = wpose.orientation.z
-            # wpose.orientation.w = quat[3]
-            # h = R.from_quat([wpose.orientation.x, wpose.orientation.y, wpose.orientation.z, wpose.orientation.w])
-            # h = R.from_quat([0, 0, np.sin(np.pi / 4), np.cos(np.pi / 4)])
-            # h = h.as_matrix()
-            # TODO: find how to doubles between quenterions
             r = R.from_euler('y', np.deg2rad(theta[count]), degrees=False).as_dcm()
             rotate_matrix = R.from_dcm(np.dot(phi_m, r))
             quat = rotate_matrix.as_quat()
-            # wpose.orientation.x = wpose.orientation.x
-            # wpose.orientation.y = quat[1]
-            # wpose.orientation.z = wpose.orientation.z
-            # wpose.orientation.w = quat[3]
             wpose.orientation.x = quat[0]
             wpose.orientation.y = quat[1]
             wpose.orientation.z = quat[2]
             wpose.orientation.w = quat[3]
             waypoints.append(copy.deepcopy(wpose))
 
-        # wpose.position.z -= scale * 0.1  # First move up (z)
-        # wpose.position.y += scale * 0.2  # and sideways (y)
-        # waypoints.append(copy.deepcopy(wpose))
-        #
-        # wpose.position.x += scale * 0.1  # Second move forward/backwards in (x)
-        # waypoints.append(copy.deepcopy(wpose))
-        #
-        # wpose.position.y -= scale * 0.1  # Third move sideways (y)
-        # waypoints.append(copy.deepcopy(wpose))
-
-        # We want the Cartesian path to be interpolated at a resolution of 1 cm
-        # which is why we will specify 0.01 as the eef_step in Cartesian
-        # translation.  We will disable the jump threshold by setting it to 0.0,
-        # ignoring the check for infeasible jumps in joint space, which is sufficient
-        # for this tutorial.
         (plan, fraction) = move_group.compute_cartesian_path(
             waypoints,  # waypoints to follow
             0.1,  # eef_step
             20.0)  # jump_threshold
 
         #    https://github.com/ros-planning/moveit/issues/24
-        for i,data in enumerate(plan.joint_trajectory.points):
-            plan.joint_trajectory.points[i].velocities=tuple([0,0,0,0,0,0])
-            plan.joint_trajectory.points[i].accelerations=tuple([0,0,0,0,0,0])
-            plan.joint_trajectory.points[i].time_from_start.nsecs=0
-            plan.joint_trajectory.points[i].time_from_start.secs=0
-        scale = 0.8
-        new_plan = self.move_group.retime_trajectory( self.robot.get_current_state(),
-                                                    plan,
-                                                    velocity_scaling_factor = 1.0*scale,
-                                                    acceleration_scaling_factor =1.0*scale,
-                                                    algorithm = "iterative_spline_parameterization" )
+        for i, trajectory_2d in enumerate(plan.joint_trajectory.points):
+            plan.joint_trajectory.points[i].velocities = tuple([0, 0, 0, 0, 0, 0])
+            plan.joint_trajectory.points[i].accelerations = tuple([0, 0, 0, 0, 0, 0])
+            plan.joint_trajectory.points[i].time_from_start.nsecs = 0
+            plan.joint_trajectory.points[i].time_from_start.secs = 0
 
-        # Note: We are just planning, not asking move_group to actually move the robot yet:
-        v = np.array([i.velocities for i in new_plan.joint_trajectory.points])
+        new_plan = self.move_group.retime_trajectory(self.robot.get_current_state(),
+                                                     plan,
+                                                     velocity_scaling_factor=1.0 * scale,
+                                                     acceleration_scaling_factor=1.0 * scale,
+                                                     algorithm="iterative_spline_parameterization")
+
+        vel_traj = np.array([i.velocities for i in new_plan.joint_trajectory.points])
         return new_plan, fraction
 
-        ## END_SUB_TUTORIAL
+        print "Launch The trajectory"
 
     def display_trajectory(self, plan):
+        print "Display The trajectory"
         # Copy class variables to local variables to make the web tutorials more clear.
         # In practice, you should use the class variables directly unless you have a good
         # reason not to.
@@ -325,66 +243,17 @@ class MoveGroupPythonIntefaceTutorial(object):
         # Publish
         display_trajectory_publisher.publish(display_trajectory);
 
-        ## END_SUB_TUTORIAL
-
     def execute_plan(self, plan):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
+        print "Execute The trajectory"
         move_group = self.move_group
 
-        ## BEGIN_SUB_TUTORIAL execute_plan
-        ##
-        ## Executing a Plan
-        ## ^^^^^^^^^^^^^^^^
         ## Use execute if you would like the robot to follow
         ## the plan that has already been computed:
         move_group.execute(plan, wait=True)
 
         ## **Note:** The robot's current joint state must be within some tolerance of the
         ## first waypoint in the `RobotTrajectory`_ or ``execute()`` will fail
-        ## END_SUB_TUTORIAL
 
-    def wait_for_state_update(self, box_is_known=False, box_is_attached=False, timeout=4):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
-        box_name = self.box_name
-        scene = self.scene
-
-        ## BEGIN_SUB_TUTORIAL wait_for_scene_update
-        ##
-        ## Ensuring Collision Updates Are Receieved
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        ## If the Python node dies before publishing a collision object update message, the message
-        ## could get lost and the box will not appear. To ensure that the updates are
-        ## made, we wait until we see the changes reflected in the
-        ## ``get_attached_objects()`` and ``get_known_object_names()`` lists.
-        ## For the purpose of this tutorial, we call this function after adding,
-        ## removing, attaching or detaching an object in the planning scene. We then wait
-        ## until the updates have been made or ``timeout`` seconds have passed
-        start = rospy.get_time()
-        seconds = rospy.get_time()
-        while (seconds - start < timeout) and not rospy.is_shutdown():
-            # Test if the box is in attached objects
-            attached_objects = scene.get_attached_objects([box_name])
-            is_attached = len(attached_objects.keys()) > 0
-
-            # Test if the box is in the scene.
-            # Note that attaching the box will remove it from known_objects
-            is_known = box_name in scene.get_known_object_names()
-
-            # Test if we are in the expected state
-            if (box_is_attached == is_attached) and (box_is_known == is_known):
-                return True
-
-            # Sleep so that we give other threads time on the processor
-            rospy.sleep(0.1)
-            seconds = rospy.get_time()
-
-        # If we exited the while loop without returning then we timed out
-        return False
-        ## END_SUB_TUTORIAL
 
     def convert_to_pose_msg(self, translation, rotation):
         pose_msg = PoseStamped()
@@ -393,32 +262,28 @@ class MoveGroupPythonIntefaceTutorial(object):
         pose_msg.header.stamp = rospy.Time.now()
         pose_msg.header.frame_id = "base_link"
 
-        # pose_msg.pose.position.x = translation[0]
-        # pose_msg.pose.position.y = translation[1]
-        # pose_msg.pose.position.z = translation[2]
-        #
-        # pose_msg.pose.orientation.x = rotation[0]
-        # pose_msg.pose.orientation.y = rotation[1]
-        # pose_msg.pose.orientation.z = rotation[2]
-        # pose_msg.pose.orientation.w = rotation[3]
+        pose_msg.pose.position.x = translation[0]
+        pose_msg.pose.position.y = translation[1]
+        pose_msg.pose.position.z = translation[2]
+
+        pose_msg.pose.orientation.x = rotation[0]
+        pose_msg.pose.orientation.y = rotation[1]
+        pose_msg.pose.orientation.z = rotation[2]
+        pose_msg.pose.orientation.w = rotation[3]
         return pose_msg
 
 
-def main():
+def main(ABB_arm):
     try:
 
-        tutorial = MoveGroupPythonIntefaceTutorial()
+        ABB_arm.restart_arm()
 
-        tutorial.go_to_joint_state()
+        if ABB_arm.pcd_array is not None and ABB_arm.theta is not None:
+            cartesian_plan, fraction = ABB_arm.calculate_trajectory()
 
-        # tutorial.go_to_pose_goal()
-        if tutorial.pcd_array is not None and tutorial.theta is not None:
-            cartesian_plan, fraction = tutorial.plan_cartesian_path()
+            ABB_arm.display_trajectory(cartesian_plan)
 
-            tutorial.display_trajectory(cartesian_plan)
-
-            tutorial.execute_plan(cartesian_plan)
-
+            ABB_arm.execute_plan(cartesian_plan)
 
     except rospy.ROSInterruptException:
         return
@@ -427,5 +292,7 @@ def main():
 
 
 if __name__ == '__main__':
+
+    ABB_arm = MoveGroupPythonIntefaceTutorial()
     while True:
-        main()
+        main(ABB_arm)

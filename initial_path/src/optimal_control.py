@@ -47,11 +47,15 @@ class optimal_control:
         mass = 1  # object mass
         g = 9.8  # gravitation acceleration
         nt = 100  # time steps
+        x_start = -0.6
+        x_end = -0.3
+        y_start = 0.8
+        y_end = 0.3
         self.m.time = np.linspace(0, 2, nt)
 
         # Set initial values (initial value, lower boundary and upper boundary)
-        x = self.m.Var(value=-0.6, lb=-0.7, ub=1, fixed_initial=True)
-        y = self.m.Var(value=0.8, lb=0, ub=1, fixed_initial=True)
+        x = self.m.Var(value=x_start, lb=-0.7, ub=1, fixed_initial=True)
+        y = self.m.Var(value=y_start, lb=0, ub=1, fixed_initial=True)
         theta = self.m.Var(value=0, lb=0, ub=2, fixed_initial=True)
         u_x = self.m.Var(value=0, lb=0)
         u_y = self.m.Var(value=0, ub=0)
@@ -61,8 +65,8 @@ class optimal_control:
         a_theta = self.m.Var(value=0, lb=-10, ub=10)
 
         # Set Final conditions
-        self.m.fix_final(x, -0.3)
-        self.m.fix_final(y, 0.3)
+        self.m.fix_final(x, x_end)
+        self.m.fix_final(y, y_end)
         self.m.fix_final(theta, np.pi / 2)
         self.m.fix_final(u_x, 0)
         self.m.fix_final(u_y, 0)
@@ -92,6 +96,9 @@ class optimal_control:
         # m.Obj(0.8*f_s**2+0.2*f_r**2)  # for maximazine put minus
         self.m.Obj(f_s ** 2)  # for maximazine put minus
         self.m.options.IMODE = 6
+        # self.m.options.SOLVER = 1
+        # self.m.options.MAX_ITER = 10000
+
         self.m.solve(disp=True)
 
         if self.show:

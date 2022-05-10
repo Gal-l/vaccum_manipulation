@@ -18,6 +18,7 @@ from sensor_msgs.msg import PointCloud2
 from geometry_msgs.msg import Point, PoseStamped, PointStamped
 from std_msgs.msg import Float32MultiArray
 import open3d as o3d
+from visualization_msgs.msg import Marker
 
 def all_close(goal, actual, tolerance):
     """
@@ -53,6 +54,7 @@ class MoveGroupPythonIntefaceTutorial(object):
         ## First initialize `moveit_commander`_ and a `rospy`_ node:
         moveit_commander.roscpp_initialize(sys.argv)
         rospy.init_node('load_env', anonymous=True)
+        self.cage_marker_publisher = rospy.Publisher('Cage_Marker', Marker, queue_size=1)
 
         ## Instantiate a `RobotCommander`_ object. Provides information such as the robot's
         ## kinematic model and the robot's current joint states
@@ -88,7 +90,13 @@ class MoveGroupPythonIntefaceTutorial(object):
         self.eef_link = eef_link
         self.group_names = group_names
 
-        self.add_cage_to_scene()
+
+        self.add_gripper_to_scene()
+        rospy.sleep(0.5)
+        self.attach_vaccum_gripper_mesh()
+        rospy.sleep(0.5)
+        self.add_marker_cage()
+
 
     def add_cage_to_scene(self):
 
@@ -108,10 +116,80 @@ class MoveGroupPythonIntefaceTutorial(object):
 
         self.scene.add_mesh(cage_name, cage_pose, '{}/meshes/cage.stl'.format(pkg_path), (0.001, 0.001, 0.001))
 
+    def add_marker_cage(self):
+
+        marker = Marker()
+        marker.header.frame_id = "base_link"
+        marker.type = marker.MESH_RESOURCE
+        marker.action = marker.ADD
+
+        scale = 0.001 # m to mm
+        marker.scale.x = scale
+        marker.scale.y = scale
+        marker.scale.z = scale
+
+        marker.mesh_use_embedded_materials = True
+        marker.mesh_resource = "package://initial_path/meshes/cage.stl"
+
+        marker.color.a = 0.5
+        marker.color.r = 0.0
+        marker.color.g = 0.0
+        marker.color.b = 1.0
+
+        marker.pose.orientation.x, marker.pose.orientation.y, marker.pose.orientation.z, marker.pose.orientation.w = 0.0005629, -0.707388, -0.706825, 0.0005633
+
+        marker.pose.position.x, marker.pose.position.y, marker.pose.position.z = 1.02, -1.71, -0.74
+
+        marker.id = 0
+
+        print ("Publish Marker")
+
+        self.cage_marker_publisher.publish(marker)
+
+        rospy.sleep(0.5)
+
+
+
+    def add_gripper_to_scene(self):
+
+        vaccum_gripper_mesh_pose = PoseStamped()
+
+        vaccum_gripper_mesh_pose.header.frame_id = "base_link"
+
+        vaccum_gripper_mesh_pose.pose.orientation.x, vaccum_gripper_mesh_pose.pose.orientation.y, vaccum_gripper_mesh_pose.pose.orientation.z, \
+        vaccum_gripper_mesh_pose.pose.orientation.w = 0.5535217, -0.5586397, 0.438775, 0.4347551 # 0.5584857, -0.5580411, 0.433811, 0.4341565
+
+        vaccum_gripper_mesh_pose.pose.position.x, vaccum_gripper_mesh_pose.pose.position.y,\
+        vaccum_gripper_mesh_pose.pose.position.z = 0.83, 0.10, 0.76 # 0.75, 0.13, 0.76
+
+
+
+        vaccum_name = "vaccum_gripper"
+
+        pkg_path = rospkg.RosPack().get_path('initial_path')
+
+        rospy.sleep(0.5)
+
+        self.scene.add_mesh(vaccum_name,vaccum_gripper_mesh_pose,'{}/meshes/vaccum_box.stl'.format(pkg_path),(0.001,0.001,0.001))
+
+    def attach_vaccum_gripper_mesh(self):
+
+        # grasping_group = self.group_names
+        #
+        # touch_links = self.robot.get_link_names(group=grasping_group)
+
+        touch_links = 'tool0'
+
+        self.scene.attach_mesh('tool0', "vaccum_gripper", touch_links=touch_links)
+
+        rospy.sleep(0.5)
+
 def main():
     try:
 
         tutorial = MoveGroupPythonIntefaceTutorial()
+        print "Done upload the environment"
+        exit()
 
     except rospy.ROSInterruptException:
         return
@@ -120,5 +198,5 @@ def main():
 
 
 if __name__ == '__main__':
-    while True:
-        main()
+    main()
+    exit()

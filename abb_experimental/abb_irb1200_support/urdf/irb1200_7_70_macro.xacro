@@ -155,7 +155,11 @@
     </joint>
 
     <!-- ROS-Industrial 'flange' frame: attachment point for EEF models -->
-    <link name="${prefix}flange"/>
+    <link name="${prefix}flange">
+        <geometry>
+          <mesh filename="package://abb_irb1200_support/meshes/irb1200_7_70/collision/vaccum.stl" />
+        </geometry>
+    </link>
     <joint type="fixed" name="${prefix}joint_6-flange">
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <parent link="${prefix}link_6"/>
