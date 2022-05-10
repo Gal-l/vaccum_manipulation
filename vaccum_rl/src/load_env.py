@@ -158,7 +158,7 @@ class MoveGroupPythonIntefaceTutorial(object):
         vaccum_gripper_mesh_pose.pose.orientation.w = 0.5535217, -0.5586397, 0.438775, 0.4347551 # 0.5584857, -0.5580411, 0.433811, 0.4341565
 
         vaccum_gripper_mesh_pose.pose.position.x, vaccum_gripper_mesh_pose.pose.position.y,\
-        vaccum_gripper_mesh_pose.pose.position.z = 0.83 + 0.02, 0.10, 0.76 # 0.75, 0.13, 0.76
+        vaccum_gripper_mesh_pose.pose.position.z = 0.83 + 0.021, 0.10, 0.76 # 0.75, 0.13, 0.76
 
 
 
