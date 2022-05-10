@@ -1,0 +1,7 @@
+<launch>
+
+  <param name="robot_description" textfile="$(find initial_path)/urdf/cage.urdf"/>
+
+  <node name="rviz" pkg ="rviz" type="rviz"/>
+
+</launch>

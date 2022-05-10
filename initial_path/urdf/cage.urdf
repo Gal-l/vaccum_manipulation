@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+
+<robot name="cage">
+  <link name="base_link">
+    <visual>
+      <geometry>
+         <mesh filename="package://initial_path/meshes/cage.stl" />
+      </geometry>
+    </visual>
+  </link>
+
+</robot>
