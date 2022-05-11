@@ -13,8 +13,7 @@ from std_msgs.msg import Float32MultiArray
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from std_msgs.msg import Header
-from config import V_Params
-
+import time
 
 class optimal_control:
 
@@ -45,17 +44,13 @@ class optimal_control:
 
 
     def set_conditions(self):
-        v_params = V_Params()
-
         mass = 1  # object mass
         g = 9.8  # gravitation acceleration
         nt = 100  # time steps
-
-        x_start = v_params.x_start
-        x_end = v_params.x_end
-        y_start = v_params.y_start
-        y_end = v_params.y_end
-
+        x_start = -0.6
+        x_end = -0.3
+        y_start = 0.8
+        y_end = 0.3
         self.m.time = np.linspace(0, 2, nt)
 
         # Set initial values (initial value, lower boundary and upper boundary)
@@ -189,6 +184,7 @@ class optimal_control:
             plt.draw()
             plt.pause(0.1)
         plt.show()
+
 
 if __name__ == '__main__':
     test = optimal_control()

@@ -18,6 +18,7 @@ from sensor_msgs.msg import PointCloud2
 from geometry_msgs.msg import Point, PoseStamped, PointStamped
 from std_msgs.msg import Float32MultiArray
 import open3d as o3d
+from config import V_Params
 
 
 def all_close(goal, actual, tolerance):
@@ -51,6 +52,8 @@ class MoveGroupPythonIntefaceTutorial(object):
         super(MoveGroupPythonIntefaceTutorial, self).__init__()
         self.pcd_array = None
         self.theta = None
+        self.command = None
+        self.v_params = V_Params()
 
         moveit_commander.roscpp_initialize(sys.argv)
         rospy.init_node('arm_controller', anonymous=True)
@@ -77,6 +80,7 @@ class MoveGroupPythonIntefaceTutorial(object):
 
         rospy.Subscriber('initial_path_pcl', PointCloud2, self.callback)
         rospy.Subscriber('theta_array', Float32MultiArray, self.callback_theta)
+        rospy.Subscriber('RL_agent_command', String, self.callback_command)
 
         # We can get the name of the reference frame for this robot:
         planning_frame = move_group.get_planning_frame()
@@ -104,6 +108,9 @@ class MoveGroupPythonIntefaceTutorial(object):
     def callback_theta(self, theta):
         self.theta = np.asarray(theta.data)
 
+    def callback_command(self, command):
+        self.command = command.data
+
     def pointcloud2_to_pcd(self, pcl):
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(
@@ -113,11 +120,21 @@ class MoveGroupPythonIntefaceTutorial(object):
     def restart_arm(self):
         print "Restart The Arm Position ..."
         move_group = self.move_group
+        joint_goal = self.v_params.home_pose_joints
+        move_group.go(joint_goal, wait=True)
+        move_group.stop()
+        current_joints = move_group.get_current_joint_values()
+        return all_close(joint_goal, current_joints, 0.01)
+        print "Arm Position Has Been Restarted !"
+
+    def go_home(self):
+        print "Restart The Arm Position ..."
+        move_group = self.move_group
         wpose = move_group.get_current_pose().pose
         # Get the joint values from the group and adjust some of the values:
         joint_goal = move_group.get_current_joint_values()
 
-        joint_goal[0] = pi / 2
+        joint_goal[0] = 0
         joint_goal[1] = 0
         joint_goal[2] = 0
         joint_goal[3] = 0
@@ -139,10 +156,7 @@ class MoveGroupPythonIntefaceTutorial(object):
     def restart_cartezian(self):
 
         waypoints = []
-        wpose = self.move_group.get_current_pose().pose
-        wpose.position.x, wpose.position.y, wpose.position.z = 0, 0.433017658097, 0.791097679131
-        wpose.orientation.x, wpose.orientation.y, wpose.orientation.z,\
-        wpose.orientation.w = -0.499986331332, 0.500035592038, 0.499986733259, 0.499991341666
+        wpose = self.v_params.home_pos
         waypoints.append(copy.deepcopy(wpose))
 
         (plan, fraction) = self.move_group.compute_cartesian_path(
@@ -151,23 +165,29 @@ class MoveGroupPythonIntefaceTutorial(object):
 
         return plan, fraction
 
+    def go_linear(self, x=0, y=0, z=0):
+
+        waypoints = []
+        wpose = self.move_group.get_current_pose().pose
+        wpose.position.x += x
+        wpose.position.y += y
+        wpose.position.z += z
+        waypoints.append(copy.deepcopy(wpose))
+
+        (plan, fraction) = self.move_group.compute_cartesian_path(
+            waypoints, 0.01, 0.0  # waypoints to follow  # eef_step
+        )  # jump_threshold
+
+        self.display_trajectory(plan)
+
+        self.execute_plan(plan)
+
     def calculate_trajectory(self, scale=1):
+
         print "Calculate The trajectory"
         trajectory_2d = np.copy(self.pcd_array)
         theta = np.copy(self.theta)
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
         move_group = self.move_group
-
-        ## BEGIN_SUB_TUTORIAL plan_cartesian_path
-        ##
-        ## Cartesian Paths
-        ## ^^^^^^^^^^^^^^^
-        ## You can plan a Cartesian path directly by specifying a list of waypoints
-        ## for the end-effector to go through. If executing  interactively in a
-        ## Python shell, set scale = 1.0.
-        ##
         waypoints = []
         wpose = move_group.get_current_pose().pose
         wpose_publish = move_group.get_current_pose()
@@ -269,16 +289,44 @@ class MoveGroupPythonIntefaceTutorial(object):
 
 def main(ABB_arm):
     try:
+        print ABB_arm.command
 
-        ABB_arm.restart_arm()
+        if ABB_arm.command == "home":
+            ABB_arm.go_home()
+            ABB_arm.command = None
 
-        if ABB_arm.pcd_array is not None and ABB_arm.theta is not None:
-            cartesian_plan, fraction = ABB_arm.calculate_trajectory()
+        if ABB_arm.command == "restart":
 
-            ABB_arm.display_trajectory(cartesian_plan)
+            ABB_arm.restart_arm()
+            rospy.sleep(0.5)
+            ABB_arm.go_linear(y=ABB_arm.v_params.in_out)
+            ABB_arm.command = None
 
-            ABB_arm.execute_plan(cartesian_plan)
+        if ABB_arm.command == "read_pos":
+            print ABB_arm.move_group.get_current_pose().pose
+            ABB_arm.command = None
 
+        if ABB_arm.command == "read_joint":
+            print ABB_arm.move_group.get_current_joint_values()
+            ABB_arm.command = None
+
+        if ABB_arm.command == "perform_episode":
+
+            if ABB_arm.pcd_array is not None and ABB_arm.theta is not None:
+                cartesian_plan, fraction = ABB_arm.calculate_trajectory()
+
+                ABB_arm.display_trajectory(cartesian_plan)
+
+                ABB_arm.execute_plan(cartesian_plan)
+            else:
+                print "Trajectory is empty"
+
+            ABB_arm.command = None
+
+        else:
+            print "Wait for new command..."
+
+        rospy.sleep(0.5)
     except rospy.ROSInterruptException:
         return
     except KeyboardInterrupt:
