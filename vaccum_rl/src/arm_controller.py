@@ -15,7 +15,7 @@ from moveit_commander.conversions import pose_to_list
 import pickle
 from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import PointCloud2
-from geometry_msgs.msg import Point, PoseStamped, PointStamped
+from geometry_msgs.msg import Point, PoseStamped, PointStamped, Pose, PoseArray
 from std_msgs.msg import Float32MultiArray
 import open3d as o3d
 from config import V_Params
@@ -78,9 +78,10 @@ class MoveGroupPythonIntefaceTutorial(object):
                                                        moveit_msgs.msg.DisplayTrajectory,
                                                        queue_size=20)
 
+        self.trajectory_publisher = rospy.Publisher("/trajectory_publisher", PoseArray, queue_size=1)
         rospy.Subscriber('initial_path_pcl', PointCloud2, self.callback)
         rospy.Subscriber('theta_array', Float32MultiArray, self.callback_theta)
-        rospy.Subscriber('RL_agent_command', String, self.callback_command)
+        rospy.Subscriber('/RL_agent/RL_agent_command', String, self.callback_command)
 
         # We can get the name of the reference frame for this robot:
         planning_frame = move_group.get_planning_frame()
@@ -110,6 +111,7 @@ class MoveGroupPythonIntefaceTutorial(object):
 
     def callback_command(self, command):
         self.command = command.data
+        print "The command is :", command.data
 
     def pointcloud2_to_pcd(self, pcl):
         pcd = o3d.geometry.PointCloud()
@@ -182,6 +184,41 @@ class MoveGroupPythonIntefaceTutorial(object):
 
         self.execute_plan(plan)
 
+    def show_plan(self):
+        # print "Show The trajectory"
+        trajectory_2d = np.copy(self.pcd_array)
+        theta = np.copy(self.theta)
+        move_group = self.move_group
+        waypoints = []
+        wpose = move_group.get_current_pose().pose
+        wpose.orientation = self.v_params.home_pos.orientation
+        wpose_publish = move_group.get_current_pose()
+        self.pose_publisher.publish(wpose_publish)
+        theta -= 180
+        phi = R.from_quat([wpose.orientation.x, wpose.orientation.y, wpose.orientation.z, wpose.orientation.w])
+        phi_m = phi.as_dcm()  # as_matrix for older version
+
+        trajectory_rviz = PoseArray()
+        trajectory_rviz.header.frame_id = "base_link"
+        trajectory_rviz.header.seq = 1
+        trajectory_rviz.header.stamp = rospy.Time.now()
+
+        for count, line in enumerate(trajectory_2d):
+            wpose.position.x = line[0]
+            wpose.position.y = line[1]
+            wpose.position.z = line[2]
+
+            r = R.from_euler('y', np.deg2rad(theta[count]-90), degrees=False).as_dcm()
+            rviz_matrix = R.from_dcm(np.dot(phi_m, r))
+            quat = rviz_matrix.as_quat()
+            wpose.orientation.x = quat[0]
+            wpose.orientation.y = quat[1]
+            wpose.orientation.z = quat[2]
+            wpose.orientation.w = quat[3]
+            trajectory_rviz.poses.append(copy.deepcopy(wpose))
+
+        self.trajectory_publisher.publish(trajectory_rviz)
+
     def calculate_trajectory(self, scale=1):
 
         print "Calculate The trajectory"
@@ -191,10 +228,12 @@ class MoveGroupPythonIntefaceTutorial(object):
         waypoints = []
         wpose = move_group.get_current_pose().pose
         wpose_publish = move_group.get_current_pose()
+        # wpose.orientation = self.v_params.home_pos.orientation
         self.pose_publisher.publish(wpose_publish)
         theta -= 180
         phi = R.from_quat([wpose.orientation.x, wpose.orientation.y, wpose.orientation.z, wpose.orientation.w])
         phi_m = phi.as_dcm()  # as_matrix for older version
+
         for count, line in enumerate(trajectory_2d):
             wpose.position.x = line[0]
             wpose.position.y = line[1]
@@ -289,7 +328,9 @@ class MoveGroupPythonIntefaceTutorial(object):
 
 def main(ABB_arm):
     try:
-        print ABB_arm.command
+
+        if ABB_arm.pcd_array is not None and ABB_arm.theta is not None:
+            ABB_arm.show_plan()
 
         if ABB_arm.command == "home":
             ABB_arm.go_home()
@@ -299,7 +340,9 @@ def main(ABB_arm):
 
             ABB_arm.restart_arm()
             rospy.sleep(0.5)
-            ABB_arm.go_linear(y=ABB_arm.v_params.in_out)
+            ABB_arm.go_linear(y=ABB_arm.v_params.in_offset)
+            rospy.sleep(0.5)
+            ABB_arm.go_linear(y= - ABB_arm.v_params.out_offset)
             ABB_arm.command = None
 
         if ABB_arm.command == "read_pos":

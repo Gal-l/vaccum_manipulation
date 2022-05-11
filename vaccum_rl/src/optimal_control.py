@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 import rospy
+import time
 from sensor_msgs.msg import PointCloud2
 from geometry_msgs.msg import Point, PoseStamped, PointStamped
 from sensor_msgs import point_cloud2
@@ -49,12 +50,13 @@ class optimal_control:
 
         mass = 1  # object mass
         g = 9.8  # gravitation acceleration
-        nt = 100  # time steps
+        nt = 50  # time steps
 
         x_start = v_params.x_start
         x_end = v_params.x_end
         y_start = v_params.y_start
         y_end = v_params.y_end
+        theta_acceleration = v_params.theta_acceleration
 
         self.m.time = np.linspace(0, 2, nt)
 
@@ -67,7 +69,7 @@ class optimal_control:
         u_theta = self.m.Var(value=0)
         a_x = self.m.Var(value=0, lb=-10, ub=10)
         a_y = self.m.Var(value=0, lb=-10, ub=10)
-        a_theta = self.m.Var(value=0, lb=-10, ub=10)
+        a_theta = self.m.Var(value=0, lb=-theta_acceleration, ub=theta_acceleration)
 
         # Set Final conditions
         self.m.fix_final(x, x_end)
@@ -80,7 +82,8 @@ class optimal_control:
         # set relations
         f_x = self.m.Intermediate(a_x * mass)
         f_y = self.m.Intermediate((g + a_y) * mass)
-        f_s = self.m.Intermediate(f_y * self.m.cos(theta) + f_x * self.m.sin(theta) + 0.2 * a_theta)
+        # f_s = self.m.Intermediate(f_y * self.m.cos(theta) + f_x * self.m.sin(theta) + 0.2 * a_theta)
+        f_s = self.m.Intermediate(f_y * self.m.cos(theta) + f_x * self.m.sin(theta))
         # f_r = m.Intermediate(f_y * m.sin(theta) + f_x * m.cos(theta) + 0.2*u_theta**2)
 
         p = np.zeros(nt)
@@ -191,4 +194,4 @@ class optimal_control:
         plt.show()
 
 if __name__ == '__main__':
-    test = optimal_control()
+    optimal_control = optimal_control()
