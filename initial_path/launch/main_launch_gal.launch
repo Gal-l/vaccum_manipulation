@@ -1,7 +1,0 @@
-<launch>
-
- <include file="$(find abb_irb1200_gazebo)/launch/irb1200_5_90_gazebo.launch"/>
- <include file="$(find abb_irb1200_5_90_moveit_config)/launch/moveit_planning_execution.launch"/>
-  <!---->
-
-</launch>

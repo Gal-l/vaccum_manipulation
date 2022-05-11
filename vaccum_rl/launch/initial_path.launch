@@ -2,7 +2,7 @@
 
   <!-- Load initial path-->
    
-  <node name="initial_path_node" pkg="initial_path" type="optimal_control.py" respawn="true"
+  <node name="initial_path_node" pkg="vaccum_rl" type="optimal_control.py" respawn="true"
    output="screen" />
 
 
