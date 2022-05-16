@@ -1,0 +1,6 @@
+<launch>
+
+  
+  <node name="load_env" pkg="vaccum_rl" type="load_env.py" respawn="false" output="screen" /> 
+
+</launch>
