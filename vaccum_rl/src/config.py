@@ -20,5 +20,5 @@ class V_Params:
         self.home_pos.orientation.x, self.home_pos.orientation.y, self.home_pos.orientation.z, \
         self.home_pos.orientation.w = -0.5, 0.5, 0.5, 0.5
 
-        self.in_offset = 0.3
+        self.in_offset = 0.25
         self.out_offset = self.home_pos.position.y + self.in_offset + self.x_start

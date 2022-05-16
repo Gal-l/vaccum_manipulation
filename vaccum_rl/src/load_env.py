@@ -13,11 +13,9 @@ from moveit_msgs.msg import RobotState ,RobotTrajectory
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 import pickle
-from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import PointCloud2
 from geometry_msgs.msg import Point, PoseStamped, PointStamped
 from std_msgs.msg import Float32MultiArray
-import open3d as o3d
 from visualization_msgs.msg import Marker
 
 def all_close(goal, actual, tolerance):
