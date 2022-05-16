@@ -50,7 +50,7 @@ class optimal_control:
 
         mass = 1  # object mass
         g = 9.8  # gravitation acceleration
-        nt = 50  # time steps
+        nt = 100  # time steps
 
         x_start = v_params.x_start
         x_end = v_params.x_end

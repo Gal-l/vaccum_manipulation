@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 import rospy
 import time
-from std_msgs.msg import Int16, Int8, Float64
+from std_msgs.msg import Int16, Int8, Float64, String
 import ros_numpy
 import numpy as np
-import PyKDL
+
 
 
 class restart_node:
@@ -17,7 +17,9 @@ class restart_node:
         rospy.Subscriber("/restart_controller/pid_error", Float64, self.callback_pid_error)
         rospy.Subscriber("/restart_controller/switch_read", Float64, self.callback_switch_read)
         rospy.Subscriber("/restart_controller/encoder_read", Float64, self.callback_encoder_read)
+        rospy.Subscriber('/RL_agent/RL_restart_command', String, self.callback_command)
 
+        self.command = None
         self.pid_error = 0
         self.encoder_read = 0
         self.switch_read = 1
@@ -27,10 +29,21 @@ class restart_node:
         time.sleep(1)
 
         while not rospy.is_shutdown():  # Run once
-            self.release_box()
-            # raw_input("enter to return")
-            self.return_box()
-            exit()
+            if self.command == "return":
+                self.return_box()
+                self.command = None
+
+            elif self.command == "drop":
+                self.release_box()
+                self.command = None
+
+            time.sleep(1)
+            print "The Command is: ", self.command
+
+
+    def callback_command(self, command):
+        self.command = command.data
+        print "The command is :", command.data
 
     def callback_switch_read(self, value):
         self.switch_read = value.data
@@ -43,7 +56,7 @@ class restart_node:
 
     def release_box(self):
 
-        release_round_number = 3 * self.direction
+        release_round_number = 1.5 * self.direction
         epsilon = 10
 
         print "Send motor to update location"
@@ -76,5 +89,4 @@ class restart_node:
 
 
 if __name__ == "__main__":
-    time.sleep(5)
     restart_node()

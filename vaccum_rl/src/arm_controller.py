@@ -15,6 +15,7 @@ from moveit_commander.conversions import pose_to_list
 import pickle
 from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import PointCloud2
+from std_msgs.msg import Int8, Int16
 from geometry_msgs.msg import Point, PoseStamped, PointStamped, Pose, PoseArray
 from std_msgs.msg import Float32MultiArray
 import open3d as o3d
@@ -82,6 +83,10 @@ class MoveGroupPythonIntefaceTutorial(object):
         rospy.Subscriber('initial_path_pcl', PointCloud2, self.callback)
         rospy.Subscriber('theta_array', Float32MultiArray, self.callback_theta)
         rospy.Subscriber('/RL_agent/RL_agent_command', String, self.callback_command)
+        self.pub_tool_changer = rospy.Publisher('tool_changer', Int8, queue_size=20)
+        self.pub_main_valve = rospy.Publisher('main_valve', Int8, queue_size=20)
+        self.pub_vaccum_rate = rospy.Publisher('grasp_object', Int16, queue_size=20)
+
 
         # We can get the name of the reference frame for this robot:
         planning_frame = move_group.get_planning_frame()
@@ -103,6 +108,13 @@ class MoveGroupPythonIntefaceTutorial(object):
         self.eef_link = eef_link
         self.group_names = group_names
 
+    def vaccum_on(self):
+        self.pub_main_valve.publish(1)
+        self.pub_vaccum_rate.publish(255)
+
+    def vaccum_off(self):
+        self.pub_main_valve.publish(0)
+
     def callback(self, points):
         self.pointcloud2_to_pcd(points)
 
@@ -122,9 +134,12 @@ class MoveGroupPythonIntefaceTutorial(object):
     def restart_arm(self):
         print "Restart The Arm Position ..."
         move_group = self.move_group
+
+        # Joint restart
         joint_goal = self.v_params.home_pose_joints
         move_group.go(joint_goal, wait=True)
         move_group.stop()
+
         current_joints = move_group.get_current_joint_values()
         return all_close(joint_goal, current_joints, 0.01)
         print "Arm Position Has Been Restarted !"
@@ -165,7 +180,11 @@ class MoveGroupPythonIntefaceTutorial(object):
             waypoints, 0.01, 0.0  # waypoints to follow  # eef_step
         )  # jump_threshold
 
-        return plan, fraction
+        self.display_trajectory(plan)
+
+        self.execute_plan(plan)
+
+        print "Arm Position Has Been Restarted !"
 
     def go_linear(self, x=0, y=0, z=0):
 
@@ -337,13 +356,15 @@ def main(ABB_arm):
             ABB_arm.command = None
 
         if ABB_arm.command == "restart":
-
             ABB_arm.restart_arm()
             rospy.sleep(0.5)
+            ABB_arm.vaccum_on()
             ABB_arm.go_linear(y=ABB_arm.v_params.in_offset)
             rospy.sleep(0.5)
             ABB_arm.go_linear(y= - ABB_arm.v_params.out_offset)
+            ABB_arm.vaccum_off()
             ABB_arm.command = None
+            print "Manipulator ready for episode"
 
         if ABB_arm.command == "read_pos":
             print ABB_arm.move_group.get_current_pose().pose
@@ -366,8 +387,8 @@ def main(ABB_arm):
 
             ABB_arm.command = None
 
-        else:
-            print "Wait for new command..."
+        # else:
+        #     print "Wait for new command..."
 
         rospy.sleep(0.5)
     except rospy.ROSInterruptException:
