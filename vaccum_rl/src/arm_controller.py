@@ -107,28 +107,29 @@ class MoveGroupPythonIntefaceTutorial(object):
 
         if req.command == "home":
             self.go_home()
-            return ArmCommandResponse("Your Robot is Home and Ready")
+            return ArmCommandResponse("Your Robot is Home and Ready", True)
 
         if req.command == "restart":
             self.restart_arm()
             rospy.sleep(0.5)
-            # self.vaccum_on()
+            return ArmCommandResponse("Manipulator ready for episode", True)
+
+        if req.command == "go_forward":
             print "Go forward"
             self.go_linear(y=self.v_params.in_offset)
-            rospy.sleep(0.5)
+            return ArmCommandResponse("arm move to box position", True)
+
+        if req.command == "go_backward":
             print "Go backword"
             self.go_linear(y=-self.v_params.out_offset)
-            rospy.sleep(0.5)
-            # self.vaccum_off()
-            print "Manipulator ready for episode"
-            return ArmCommandResponse("Manipulator ready for episode")
+            return ArmCommandResponse("arm move to box position", True)
 
         if req.command == "read_pos":
             print self.move_group.get_current_pose().pose
 
         if req.command == "initial_env":
             print self.initial_env()
-            return ArmCommandResponse("Environment and robot are ready to go")
+            return ArmCommandResponse("Environment and robot are ready to go", True)
 
 
         if req.command == "read_joint":
@@ -142,13 +143,13 @@ class MoveGroupPythonIntefaceTutorial(object):
                 self.display_trajectory(cartesian_plan)
 
                 self.execute_plan(cartesian_plan)
-                return ArmCommandResponse("Episode has been peformed")
+                return ArmCommandResponse("Episode has been peformed", True)
             else:
                 print "Trajectory is empty"
-                return ArmCommandResponse("Trajectory is empty")
+                return ArmCommandResponse("Trajectory is empty", False)
 
 
-        return ArmCommandResponse("Wrong Command")
+        return ArmCommandResponse("Wrong Command", False)
 
     def callback(self, points):
         self.pointcloud2_to_pcd(points)

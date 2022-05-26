@@ -3,5 +3,6 @@
 
 	<node pkg="vaccum_rl" name="arm_controller" type="arm_controller.py" output="screen"/>
 
+	<node pkg="arduino" name="controller" type="controller_node.py" output="screen"/>
 
 </launch>

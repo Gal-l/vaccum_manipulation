@@ -19,7 +19,6 @@ class restart_node:
         rospy.Subscriber("/restart_controller/pid_error", Float64, self.callback_pid_error)
         rospy.Subscriber("/restart_controller/switch_read", Float64, self.callback_switch_read)
         rospy.Subscriber("/restart_controller/encoder_read", Float64, self.callback_encoder_read)
-        rospy.Subscriber('/RL_agent/RL_restart_command', String, self.callback_command)
 
         self.move_motor = rospy.Publisher("/restart_controller/motor_move", Float64, queue_size=1)
         self.pub_tool_changer = rospy.Publisher('tool_changer', Int8, queue_size=20)
@@ -38,6 +37,7 @@ class restart_node:
         self.main()
 
     def main(self):
+        self.vaccum_off()
         while (True):
             try:
                 rospy.sleep(0.001)
@@ -50,19 +50,28 @@ class restart_node:
         print (req)
 
         if req.command == "return":
-            self.return_box()
-            return ControllerCommandResponse("Box has returned")
+            self.vaccum_off()
+            # self.return_box()
+            return ControllerCommandResponse("Box has returned", True)
 
         elif req.command == "drop":
             if self.switch_read is not self.switch_is_pressed:
                 self.release_box()
-                return ControllerCommandResponse("Box has been released")
+                return ControllerCommandResponse("Box has been released", True)
             else:
                 Warning("Switch is still pressed check for problems!!")
-                return ControllerCommandResponse("Switch is still pressed check for problems!!")
+                return ControllerCommandResponse("Switch is still pressed check for problems!!", False)
+
+        elif req.command == "vaccum_on":
+            self.vaccum_on()
+            return ControllerCommandResponse("vaccum on", True)
+
+        elif req.command == "vaccum_off":
+            self.vaccum_off()
+            return ControllerCommandResponse("vaccum off", True)
 
         else:
-            return ControllerCommandResponse("Wrong massage")
+            return ControllerCommandResponse("Wrong massage", False)
 
 
     def callback_switch_read(self, value):
@@ -75,10 +84,12 @@ class restart_node:
         self.encoder_read = value.data
 
     def vaccum_on(self):
+        print "Turn on vaccum"
         self.pub_main_valve.publish(1)
         self.pub_vaccum_rate.publish(255)
 
     def vaccum_off(self):
+        print "Close vaccum"
         self.pub_main_valve.publish(0)
 
     def release_box(self):

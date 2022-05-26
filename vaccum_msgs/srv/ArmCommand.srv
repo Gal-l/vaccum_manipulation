@@ -2,3 +2,4 @@
 string command
 ---
 string ans
+bool status 

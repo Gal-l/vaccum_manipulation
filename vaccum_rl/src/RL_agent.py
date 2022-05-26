@@ -5,7 +5,7 @@ from std_msgs.msg import String
 from std_msgs.msg import Int8, Int16
 import time
 
-from vaccum_msgs.srv import ArmCommand
+from vaccum_msgs.srv import ArmCommand, ControllerCommand
 
 
 class RL_agent:
@@ -25,31 +25,76 @@ class RL_agent:
         rospy.wait_for_service('ArmCommand_service')
         self.arm_command_srv = rospy.ServiceProxy('ArmCommand_service', ArmCommand)
 
+        print("Wait for ControllerCommand_service...")
+        rospy.wait_for_service('ControllerCommand_service')
+        self.controller_command_srv = rospy.ServiceProxy('ControllerCommand_service', ControllerCommand)
+
+
     def episode(self):
 
         self.command_msg.data = "restart"
         print self.command_msg.data
         resp = self.arm_command_srv(self.command_msg.data)
-        print resp
+        print resp.ans
+
+        if resp.status is False:
+            Warning("There is a bag in the episode")
+            return
+
+        self.command_msg.data = "go_forward"
+        print self.command_msg.data
+        resp = self.arm_command_srv(self.command_msg.data)
+        print resp.ans
+
+        if resp.status is False:
+            Warning("There is a bag in the episode")
+            return
+
+        self.command_msg.data = "vaccum_on"
+        print self.command_msg.data
+        resp = self.controller_command_srv(self.command_msg.data)
+        print resp.ans
+
+        if resp.status is False:
+            Warning("There is a bag in the episode")
+            return
+
+        self.command_msg.data = "go_backward"
+        print self.command_msg.data
+        resp = self.arm_command_srv(self.command_msg.data)
+        print resp.ans
+
+        if resp.status is False:
+            Warning("There is a bag in the episode")
+            return
 
         self.command_msg.data = "perform_episode"
         print self.command_msg.data
         resp = self.arm_command_srv(self.command_msg.data)
-        print resp
+        print resp.ans
+
+        if resp.status is False:
+            Warning("There is a bag in the episode")
+            return
 
         self.command_msg.data = "drop"
-        resp = self.arm_command_srv(self.command_msg.data)
-        print resp
+        resp = self.controller_command_srv(self.command_msg.data)
+        print resp.ans
+
+        if resp.status is False:
+            Warning("There is a bag in the episode")
+            return
 
         self.command_msg.data = "return"
-        resp = self.arm_command_srv(self.command_msg.data)
-        print resp
+        resp = self.controller_command_srv(self.command_msg.data)
+        print resp.ans
 
     def main(self):
 
         raw_input("Enter to initial simulation")
         self.command_msg.data = "initial_env"
         resp = self.arm_command_srv(self.command_msg.data)
+
         print resp
         raw_input("Enter to start starining")
 

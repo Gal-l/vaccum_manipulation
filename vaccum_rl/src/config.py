@@ -5,7 +5,7 @@ from geometry_msgs.msg import Pose
 
 class V_Params:
     def __init__(self):
-        self.x_start = -0.4 #-0.55
+        self.x_start = -0.42 #-0.55
         self.x_end = -0.4
         self.y_start = 0.8
         self.y_end = 0.4
