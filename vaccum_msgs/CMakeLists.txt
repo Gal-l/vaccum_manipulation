@@ -60,6 +60,8 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
    FILES
    HomeCommand.srv
+   ControllerCommand.srv
+   ArmCommand.srv
 
  )
 

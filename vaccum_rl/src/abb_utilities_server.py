@@ -2,12 +2,14 @@
 import sys
 import copy
 import rospy
+import numpy as np
 import moveit_commander
 import geometry_msgs.msg
 from math import pi
 from moveit_commander.conversions import pose_to_list
 from vaccum_msgs.srv import HomeCommand, HomeCommandResponse
 from std_msgs.msg import Int8
+from config import V_Params
 
 
 def all_close(goal, actual, tolerance):
@@ -52,6 +54,7 @@ class Homming_robot:
 
         self.pub_main_valve = rospy.Publisher('main_valve', Int8, queue_size=20)
 
+        self.v_params = V_Params()
 
     def server_callback(self, req):
         print (req)
@@ -77,17 +80,12 @@ class Homming_robot:
 
         print("new new")
 
+        move_group = self.move_group
         group = self.move_group
 
         # We can get the joint values from the group and adjust some of the values:
-        joint_goal = group.get_current_joint_values()
-        joint_goal[0] = 0
-        # joint_goal[0] = 0
-        joint_goal[1] = 0
-        joint_goal[2] = 0
-        joint_goal[3] = 0  # -pi
-        joint_goal[4] = 0
-        joint_goal[5] = 0
+        joint_goal = self.v_params.home_pose_joints
+        move_group.go(joint_goal, wait=True)
 
         # The go command can be called with joint values, poses, or without any
         # parameters if you have already set the pose or joint target for the group

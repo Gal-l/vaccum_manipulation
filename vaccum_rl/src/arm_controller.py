@@ -20,6 +20,7 @@ from geometry_msgs.msg import Point, PoseStamped, PointStamped, Pose, PoseArray
 from std_msgs.msg import Float32MultiArray
 import open3d as o3d
 from config import V_Params
+from vaccum_msgs.srv import ArmCommand, ArmCommandResponse
 
 
 def all_close(goal, actual, tolerance):
@@ -57,27 +58,9 @@ class MoveGroupPythonIntefaceTutorial(object):
         self.v_params = V_Params()
 
         moveit_commander.roscpp_initialize(sys.argv)
+        print "Run ArmCommand_service"
+        self.service = rospy.Service('ArmCommand_service', ArmCommand, self.server_callback)
         rospy.init_node('arm_controller', anonymous=True)
-
-        ## Instantiate a `RobotCommander`_ object. Provides information such as the robot's
-        ## kinematic model and the robot's current joint states
-        robot = moveit_commander.RobotCommander()
-
-        ## Instantiate a `PlanningSceneInterface`_ object.  This provides a remote interface
-        ## for getting, setting, and updating the robot's internal understanding of the
-        ## surrounding world:
-        scene = moveit_commander.PlanningSceneInterface()
-
-        # define ABB ROBOT - ABB - irb1200_7_70
-        group_name = "manipulator"
-        move_group = moveit_commander.MoveGroupCommander(group_name)
-
-        ## Create a `DisplayTrajectory`_ ROS publisher which is used to display
-        ## trajectories in Rviz:
-        self.pose_publisher = rospy.Publisher("/grasp_point", PoseStamped, queue_size=1)
-        display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
-                                                       moveit_msgs.msg.DisplayTrajectory,
-                                                       queue_size=20)
 
         self.trajectory_publisher = rospy.Publisher("/trajectory_publisher", PoseArray, queue_size=1)
         rospy.Subscriber('initial_path_pcl', PointCloud2, self.callback)
@@ -87,18 +70,19 @@ class MoveGroupPythonIntefaceTutorial(object):
         self.pub_main_valve = rospy.Publisher('main_valve', Int8, queue_size=20)
         self.pub_vaccum_rate = rospy.Publisher('grasp_object', Int16, queue_size=20)
 
+        robot = moveit_commander.RobotCommander()
+        scene = moveit_commander.PlanningSceneInterface()
+        group_name = "manipulator"
+        move_group = moveit_commander.MoveGroupCommander(group_name)
+        self.pose_publisher = rospy.Publisher("/grasp_point", PoseStamped, queue_size=1)
+        display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
+                                                       moveit_msgs.msg.DisplayTrajectory,
+                                                       queue_size=20)
 
-        # We can get the name of the reference frame for this robot:
         planning_frame = move_group.get_planning_frame()
-
-        # We can also print the name of the end-effector link for this group:
         eef_link = move_group.get_end_effector_link()
-
-        # We can get a list of all the groups in the robot:
         group_names = robot.get_group_names()
-        # print "============ Available Planning Groups:", robot.get_group_names()
 
-        # Misc variables
         self.box_name = ''
         self.robot = robot
         self.scene = scene
@@ -107,6 +91,59 @@ class MoveGroupPythonIntefaceTutorial(object):
         self.planning_frame = planning_frame
         self.eef_link = eef_link
         self.group_names = group_names
+
+        self.main()
+
+    def main(self):
+        while (True):
+            try:
+                if self.pcd_array is not None and self.theta is not None:
+                    self.show_plan()
+                rospy.sleep(0.5)
+            except rospy.ROSInterruptException:
+                return
+            except KeyboardInterrupt:
+                return
+
+    def server_callback(self, req):
+        print (req)
+
+        if req.command == "home":
+            self.go_home()
+            return ArmCommandResponse("Your Robot is Home and Ready")
+
+        if req.command == "restart":
+            self.restart_arm()
+            rospy.sleep(0.5)
+            self.vaccum_on()
+            self.go_linear(y=self.v_params.in_offset)
+            rospy.sleep(0.5)
+            self.go_linear(y=-self.v_params.out_offset)
+            self.vaccum_off()
+            print "Manipulator ready for episode"
+            return ArmCommandResponse("Manipulator ready for episode")
+
+        if req.command == "read_pos":
+            print self.move_group.get_current_pose().pose
+
+        if req.command == "read_joint":
+            print self.move_group.get_current_joint_values()
+
+        if req.command == "perform_episode":
+
+            if self.pcd_array is not None and self.theta is not None:
+                cartesian_plan, fraction = self.calculate_trajectory()
+
+                self.display_trajectory(cartesian_plan)
+
+                self.execute_plan(cartesian_plan)
+                return ArmCommandResponse("Episode has been peformed")
+            else:
+                print "Trajectory is empty"
+                return ArmCommandResponse("Trajectory is empty")
+
+
+        return ArmCommandResponse("Wrong Command")
 
     def vaccum_on(self):
         self.pub_main_valve.publish(1)
@@ -227,7 +264,7 @@ class MoveGroupPythonIntefaceTutorial(object):
             wpose.position.y = line[1]
             wpose.position.z = line[2]
 
-            r = R.from_euler('y', np.deg2rad(theta[count]-90), degrees=False).as_dcm()
+            r = R.from_euler('y', np.deg2rad(theta[count] - 90), degrees=False).as_dcm()
             rviz_matrix = R.from_dcm(np.dot(phi_m, r))
             quat = rviz_matrix.as_quat()
             wpose.orientation.x = quat[0]
@@ -297,18 +334,6 @@ class MoveGroupPythonIntefaceTutorial(object):
         # reason not to.
         robot = self.robot
         display_trajectory_publisher = self.display_trajectory_publisher
-
-        ## BEGIN_SUB_TUTORIAL display_trajectory
-        ##
-        ## Displaying a Trajectory
-        ## ^^^^^^^^^^^^^^^^^^^^^^^
-        ## You can ask RViz to visualize a plan (aka trajectory) for you. But the
-        ## group.plan() method does this automatically so this is not that useful
-        ## here (it just displays the same trajectory again):
-        ##
-        ## A `DisplayTrajectory`_ msg has two primary fields, trajectory_start and trajectory.
-        ## We populate the trajectory_start with our current robot state to copy over
-        ## any AttachedCollisionObjects and add our plan to the trajectory.
         display_trajectory = moveit_msgs.msg.DisplayTrajectory()
         display_trajectory.trajectory_start = robot.get_current_state()
         display_trajectory.trajectory.append(plan)
@@ -318,14 +343,7 @@ class MoveGroupPythonIntefaceTutorial(object):
     def execute_plan(self, plan):
         print "Execute The trajectory"
         move_group = self.move_group
-
-        ## Use execute if you would like the robot to follow
-        ## the plan that has already been computed:
         move_group.execute(plan, wait=True)
-
-        ## **Note:** The robot's current joint state must be within some tolerance of the
-        ## first waypoint in the `RobotTrajectory`_ or ``execute()`` will fail
-
 
     def convert_to_pose_msg(self, translation, rotation):
         pose_msg = PoseStamped()
@@ -345,60 +363,5 @@ class MoveGroupPythonIntefaceTutorial(object):
         return pose_msg
 
 
-def main(ABB_arm):
-    try:
-
-        if ABB_arm.pcd_array is not None and ABB_arm.theta is not None:
-            ABB_arm.show_plan()
-
-        if ABB_arm.command == "home":
-            ABB_arm.go_home()
-            ABB_arm.command = None
-
-        if ABB_arm.command == "restart":
-            ABB_arm.restart_arm()
-            rospy.sleep(0.5)
-            ABB_arm.vaccum_on()
-            ABB_arm.go_linear(y=ABB_arm.v_params.in_offset)
-            rospy.sleep(0.5)
-            ABB_arm.go_linear(y= - ABB_arm.v_params.out_offset)
-            ABB_arm.vaccum_off()
-            ABB_arm.command = None
-            print "Manipulator ready for episode"
-
-        if ABB_arm.command == "read_pos":
-            print ABB_arm.move_group.get_current_pose().pose
-            ABB_arm.command = None
-
-        if ABB_arm.command == "read_joint":
-            print ABB_arm.move_group.get_current_joint_values()
-            ABB_arm.command = None
-
-        if ABB_arm.command == "perform_episode":
-
-            if ABB_arm.pcd_array is not None and ABB_arm.theta is not None:
-                cartesian_plan, fraction = ABB_arm.calculate_trajectory()
-
-                ABB_arm.display_trajectory(cartesian_plan)
-
-                ABB_arm.execute_plan(cartesian_plan)
-            else:
-                print "Trajectory is empty"
-
-            ABB_arm.command = None
-
-        # else:
-        #     print "Wait for new command..."
-
-        rospy.sleep(0.5)
-    except rospy.ROSInterruptException:
-        return
-    except KeyboardInterrupt:
-        return
-
-
 if __name__ == '__main__':
-
     ABB_arm = MoveGroupPythonIntefaceTutorial()
-    while True:
-        main(ABB_arm)

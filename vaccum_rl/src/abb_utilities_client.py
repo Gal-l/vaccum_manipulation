@@ -1,15 +1,14 @@
 #!/usr/bin/env python
-import sys
-import copy
-import rospy
-import moveit_commander
-import geometry_msgs.msg
-from math import pi
-from moveit_commander.conversions import pose_to_list
-from vaccum_msgs.srv import HomeCommand, HomeCommandResponse
-from std_msgs.msg import Int8
 
-# !/usr/bin/env python
+# import sys
+# import copy
+# import rospy
+# import moveit_commander
+# import geometry_msgs.msg
+# from math import pi
+# from moveit_commander.conversions import pose_to_list
+# from vaccum_msgs.srv import HomeCommand, HomeCommandResponse
+# from std_msgs.msg import Int8
 
 import rospy
 from vaccum_msgs.srv import HomeCommand
