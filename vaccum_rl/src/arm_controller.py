@@ -66,9 +66,6 @@ class MoveGroupPythonIntefaceTutorial(object):
         rospy.Subscriber('initial_path_pcl', PointCloud2, self.callback)
         rospy.Subscriber('theta_array', Float32MultiArray, self.callback_theta)
         rospy.Subscriber('/RL_agent/RL_agent_command', String, self.callback_command)
-        self.pub_tool_changer = rospy.Publisher('tool_changer', Int8, queue_size=20)
-        self.pub_main_valve = rospy.Publisher('main_valve', Int8, queue_size=20)
-        self.pub_vaccum_rate = rospy.Publisher('grasp_object', Int16, queue_size=20)
 
         robot = moveit_commander.RobotCommander()
         scene = moveit_commander.PlanningSceneInterface()
@@ -115,16 +112,24 @@ class MoveGroupPythonIntefaceTutorial(object):
         if req.command == "restart":
             self.restart_arm()
             rospy.sleep(0.5)
-            self.vaccum_on()
+            # self.vaccum_on()
+            print "Go forward"
             self.go_linear(y=self.v_params.in_offset)
             rospy.sleep(0.5)
+            print "Go backword"
             self.go_linear(y=-self.v_params.out_offset)
-            self.vaccum_off()
+            rospy.sleep(0.5)
+            # self.vaccum_off()
             print "Manipulator ready for episode"
             return ArmCommandResponse("Manipulator ready for episode")
 
         if req.command == "read_pos":
             print self.move_group.get_current_pose().pose
+
+        if req.command == "initial_env":
+            print self.initial_env()
+            return ArmCommandResponse("Environment and robot are ready to go")
+
 
         if req.command == "read_joint":
             print self.move_group.get_current_joint_values()
@@ -144,13 +149,6 @@ class MoveGroupPythonIntefaceTutorial(object):
 
 
         return ArmCommandResponse("Wrong Command")
-
-    def vaccum_on(self):
-        self.pub_main_valve.publish(1)
-        self.pub_vaccum_rate.publish(255)
-
-    def vaccum_off(self):
-        self.pub_main_valve.publish(0)
 
     def callback(self, points):
         self.pointcloud2_to_pcd(points)
@@ -185,27 +183,43 @@ class MoveGroupPythonIntefaceTutorial(object):
         print "Restart The Arm Position ..."
         move_group = self.move_group
         wpose = move_group.get_current_pose().pose
-        # Get the joint values from the group and adjust some of the values:
+
         joint_goal = move_group.get_current_joint_values()
-
-        joint_goal[0] = 0
-        joint_goal[1] = 0
-        joint_goal[2] = 0
-        joint_goal[3] = 0
-        joint_goal[4] = 0
-        joint_goal[5] = 0
-
-        # The go command can be called with joint values, poses, or without any
-        # parameters if you have already set the pose or joint target for the group
+        joint_goal = [0, 0, 0, 0, 0, 0]
         move_group.go(joint_goal, wait=True)
-
-        # Calling ``stop()`` ensures that there is no residual movement
         move_group.stop()
 
         # For testing:
         current_joints = move_group.get_current_joint_values()
         return all_close(joint_goal, current_joints, 0.01)
         print "Arm Position Has Been Restarted !"
+
+    def initial_env(self):
+        self.restart_arm()
+        self.scene.remove_attached_object('tool0', 'vaccum_gripper')
+
+        vaccum_gripper_mesh_pose = PoseStamped()
+        vaccum_gripper_mesh_pose.header.frame_id = "base_link"
+
+        vaccum_gripper_mesh_pose.pose.orientation.x, vaccum_gripper_mesh_pose.pose.orientation.y, vaccum_gripper_mesh_pose.pose.orientation.z, \
+        vaccum_gripper_mesh_pose.pose.orientation.w = -0.7864119, 0.0045584, -0.6176752, 0.0035803  # 0.5535217, -0.5586397, 0.438775, 0.4347551
+
+        vaccum_gripper_mesh_pose.pose.position.x, vaccum_gripper_mesh_pose.pose.position.y, \
+        vaccum_gripper_mesh_pose.pose.position.z = -0.10, 0.64, 0.82  # 0.83 + 0.021, 0.10, 0.76
+
+        vaccum_name = "vaccum_gripper"
+        pkg_path = rospkg.RosPack().get_path('vaccum_rl')
+        rospy.sleep(0.2)
+
+        self.scene.add_mesh(vaccum_name, vaccum_gripper_mesh_pose, '{}/meshes/vaccum_box.stl'.format(pkg_path),
+                            (0.001, 0.001, 0.001))
+
+        rospy.sleep(0.5)
+        touch_links = 'tool0'
+        self.scene.attach_mesh('tool0', "vaccum_gripper", touch_links=touch_links)
+        rospy.sleep(0.2)
+        # TODO: add plane to sence
+        # self.scene.add_plane(['xy plane', ])
 
     def restart_cartezian(self):
 

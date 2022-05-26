@@ -1,0 +1,7 @@
+<launch>
+        <node pkg="vaccum_rl" name="initial_path" type="abb_utilities_server.py" output="screen"/>
+
+	<node pkg="vaccum_rl" name="arm_controller" type="arm_controller.py" output="screen"/>
+
+
+</launch>

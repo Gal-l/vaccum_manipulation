@@ -88,11 +88,11 @@ class MoveGroupPythonIntefaceTutorial(object):
         self.eef_link = eef_link
         self.group_names = group_names
 
-
-        self.add_gripper_to_scene()
-        rospy.sleep(0.5)
-        self.attach_vaccum_gripper_mesh()
-        rospy.sleep(0.5)
+        rospy.sleep(3)
+        #self.add_gripper_to_scene()
+        #rospy.sleep(0.5)
+        #self.attach_vaccum_gripper_mesh()
+        #rospy.sleep(0.5)
         self.add_marker_cage()
 
 
@@ -158,8 +158,6 @@ class MoveGroupPythonIntefaceTutorial(object):
         vaccum_gripper_mesh_pose.pose.position.x, vaccum_gripper_mesh_pose.pose.position.y,\
         vaccum_gripper_mesh_pose.pose.position.z = -0.10, 0.64, 0.82 # 0.83 + 0.021, 0.10, 0.76
 
-
-
         vaccum_name = "vaccum_gripper"
 
         pkg_path = rospkg.RosPack().get_path('vaccum_rl')
@@ -179,6 +177,7 @@ class MoveGroupPythonIntefaceTutorial(object):
         self.scene.attach_mesh('tool0', "vaccum_gripper", touch_links=touch_links)
 
         rospy.sleep(0.5)
+
 
 def main():
     try:

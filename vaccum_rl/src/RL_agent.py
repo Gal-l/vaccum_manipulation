@@ -46,6 +46,13 @@ class RL_agent:
         print resp
 
     def main(self):
+
+        raw_input("Enter to initial simulation")
+        self.command_msg.data = "initial_env"
+        resp = self.arm_command_srv(self.command_msg.data)
+        print resp
+        raw_input("Enter to start starining")
+
         while True:
             try:
                 self.episode()
