@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 from gekko import GEKKO
 import numpy as np
@@ -20,9 +20,6 @@ from config import V_Params
 class optimal_control:
 
     def __init__(self, load_exsit=False):
-        rospy.init_node('initial_path_node')
-        self.pointc_publisher = rospy.Publisher("/initial_path_pcl", PointCloud2, queue_size=1)
-        self.theta_publisher = rospy.Publisher("/theta_array", Float32MultiArray, queue_size=10)
         # https://www.youtube.com/watch?v=egQAKdJsu7E
         # https://apmonitor.com/wiki/index.php/Main/GekkoPythonOptimization
         if load_exsit is True:
@@ -41,17 +38,6 @@ class optimal_control:
 
             pcl = self.convert_point_cloud_msg(x, y)
 
-        # Main loop
-        rate = rospy.Rate(10.0)
-        # while not rospy.is_shutdown():
-        for ii in range(5):
-            seconds = time.time()
-            local_time = time.ctime(seconds)
-            print("Published new pcl on time:", local_time)
-            self.pointc_publisher.publish(pcl)
-            temp = Float32MultiArray(data=list(np.float32(theta)))
-            self.theta_publisher.publish(temp)
-            rate.sleep()
 
         self.pcl = pcl
         self.theta = theta
@@ -160,8 +146,7 @@ class optimal_control:
         data = np.copy(x)
         data = np.vstack((data, y))
         data = np.vstack((data, theta))
-        # with open('data_py3.pkl', 'wb') as f:
-        #     pickle.dump(data, f)
+
         pickle.dump(data, open("data_py2.pkl", "wb"), protocol=2)
         print("saved pickle files")
         return x, y, theta, nt
@@ -181,7 +166,7 @@ class optimal_control:
 
         header = Header()
         header.frame_id = "base_link"
-        header.stamp = rospy.Time.now()
+        header.stamp = time.time()
         temp = xyz_arr[:, 2]
         points = np.column_stack((xyz_arr, temp.T))
 

@@ -32,49 +32,44 @@ class RL_agent:
 
     def episode(self):
 
-        self.command_msg.data = "restart"
-        print self.command_msg.data
-        resp = self.arm_command_srv(self.command_msg.data)
-        print resp.ans
-
-        if resp.status is False:
-            Warning("There is a bag in the episode")
-            return
-
-        self.command_msg.data = "go_forward"
-        print self.command_msg.data
-        resp = self.arm_command_srv(self.command_msg.data)
-        print resp.ans
-
-        if resp.status is False:
-            Warning("There is a bag in the episode")
-            return
-
-        self.command_msg.data = "vaccum_on"
-        print self.command_msg.data
+        self.command_msg.data = "return"
         resp = self.controller_command_srv(self.command_msg.data)
         print resp.ans
 
         if resp.status is False:
-            Warning("There is a bag in the episode")
+            Warning("There is a bag in the restart proccess")
+            return
+
+        self.command_msg.data = "restart"
+        resp = self.arm_command_srv(self.command_msg.data)
+        print resp.ans
+
+        if resp.status is False:
+            Warning("There is a bag in the restart proccess")
+            return
+
+        self.command_msg.data = "go_forward"
+        resp = self.arm_command_srv(self.command_msg.data)
+        print resp.ans
+
+        if resp.status is False:
+            Warning("There is a bag in the go_forward command")
+            return
+
+        self.command_msg.data = "vaccum_on"
+        resp = self.controller_command_srv(self.command_msg.data)
+        print resp.ans
+
+        if resp.status is False:
+            Warning("There is a bag in the vaccum_pump")
             return
 
         self.command_msg.data = "go_backward"
-        print self.command_msg.data
         resp = self.arm_command_srv(self.command_msg.data)
         print resp.ans
 
         if resp.status is False:
-            Warning("There is a bag in the episode")
-            return
-
-        self.command_msg.data = "perform_episode"
-        print self.command_msg.data
-        resp = self.arm_command_srv(self.command_msg.data)
-        print resp.ans
-
-        if resp.status is False:
-            Warning("There is a bag in the episode")
+            Warning("There is a bag in the go_backward command")
             return
 
         self.command_msg.data = "drop"
@@ -82,8 +77,17 @@ class RL_agent:
         print resp.ans
 
         if resp.status is False:
+            Warning("There is a bag in the drop action")
+            return
+
+        self.command_msg.data = "perform_episode"
+        resp = self.arm_command_srv(self.command_msg.data)
+        print resp.ans
+
+        if resp.status is False:
             Warning("There is a bag in the episode")
             return
+
 
         self.command_msg.data = "return"
         resp = self.controller_command_srv(self.command_msg.data)
@@ -91,11 +95,12 @@ class RL_agent:
 
     def main(self):
 
-        raw_input("Enter to initial simulation")
-        self.command_msg.data = "initial_env"
-        resp = self.arm_command_srv(self.command_msg.data)
+        input = raw_input("Enter 'new'  to initial simulation else enter: ")
+        if input == "new":
+            self.command_msg.data = "initial_env"
+            resp = self.arm_command_srv(self.command_msg.data)
+            print resp
 
-        print resp
         raw_input("Enter to start starining")
 
         while True:

@@ -19,6 +19,7 @@ class restart_node:
         rospy.Subscriber("/restart_controller/pid_error", Float64, self.callback_pid_error)
         rospy.Subscriber("/restart_controller/switch_read", Float64, self.callback_switch_read)
         rospy.Subscriber("/restart_controller/encoder_read", Float64, self.callback_encoder_read)
+        rospy.Subscriber('/gripper_controller/pressure_value', Int16, self.callback_pressure_value)
 
         self.move_motor = rospy.Publisher("/restart_controller/motor_move", Float64, queue_size=1)
         self.pub_tool_changer = rospy.Publisher('tool_changer', Int8, queue_size=20)
@@ -31,6 +32,7 @@ class restart_node:
         self.encoder_read = 0
         self.switch_read = 1
         self.direction = -1
+        self.pressure_value = None
         self.rate = rospy.Rate(10.0)
 
         time.sleep(1)
@@ -51,7 +53,7 @@ class restart_node:
 
         if req.command == "return":
             self.vaccum_off()
-            # self.return_box()
+            self.return_box()
             return ControllerCommandResponse("Box has returned", True)
 
         elif req.command == "drop":
@@ -64,10 +66,12 @@ class restart_node:
 
         elif req.command == "vaccum_on":
             self.vaccum_on()
+            time.sleep(0.5)
             return ControllerCommandResponse("vaccum on", True)
 
         elif req.command == "vaccum_off":
             self.vaccum_off()
+            time.sleep(0.5)
             return ControllerCommandResponse("vaccum off", True)
 
         else:
@@ -80,13 +84,17 @@ class restart_node:
     def callback_pid_error(self, value):
         self.pid_error = value.data
 
+    def callback_pressure_value(self, value):
+        self.pressure_value = value.data
+
     def callback_encoder_read(self, value):
         self.encoder_read = value.data
 
     def vaccum_on(self):
         print "Turn on vaccum"
         self.pub_main_valve.publish(1)
-        self.pub_vaccum_rate.publish(255)
+        # self.pub_vaccum_rate.publish(255)
+        self.pub_vaccum_rate.publish(180)
 
     def vaccum_off(self):
         print "Close vaccum"
@@ -94,7 +102,7 @@ class restart_node:
 
     def release_box(self):
 
-        release_round_number = 1.5 * self.direction
+        release_round_number = 2.4 * self.direction
         epsilon = 10
 
         print "Send motor to update location"
@@ -118,7 +126,7 @@ class restart_node:
             self.move_motor.publish(step)
             self.rate.sleep()
 
-        self.move_motor.publish(-2 * step)
+        self.move_motor.publish(-2.5 * step)
         print "Box is Home and Ready"
         return
 

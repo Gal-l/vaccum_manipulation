@@ -1,4 +1,6 @@
 <launch>
+
+	<node name="load_env" pkg="vaccum_rl" type="load_env.py" respawn="false" output="screen" />
         <node pkg="vaccum_rl" name="initial_path" type="abb_utilities_server.py" output="screen"/>
 
 	<node pkg="vaccum_rl" name="arm_controller" type="arm_controller.py" output="screen"/>

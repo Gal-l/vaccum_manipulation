@@ -21,6 +21,7 @@ from std_msgs.msg import Float32MultiArray
 import open3d as o3d
 from config import V_Params
 from vaccum_msgs.srv import ArmCommand, ArmCommandResponse
+from get_path import optimal_control
 
 
 def all_close(goal, actual, tolerance):
@@ -56,6 +57,10 @@ class MoveGroupPythonIntefaceTutorial(object):
         self.theta = None
         self.command = None
         self.v_params = V_Params()
+        self.trajectory_data = optimal_control(load_exsit=False)
+        self.pointcloud2_to_pcd(self.trajectory_data.pcl)
+        self.theta = self.trajectory_data.theta
+
 
         moveit_commander.roscpp_initialize(sys.argv)
         print "Run ArmCommand_service"
@@ -63,8 +68,8 @@ class MoveGroupPythonIntefaceTutorial(object):
         rospy.init_node('arm_controller', anonymous=True)
 
         self.trajectory_publisher = rospy.Publisher("/trajectory_publisher", PoseArray, queue_size=1)
-        rospy.Subscriber('initial_path_pcl', PointCloud2, self.callback)
-        rospy.Subscriber('theta_array', Float32MultiArray, self.callback_theta)
+        # rospy.Subscriber('initial_path_pcl', PointCloud2, self.callback)
+        # rospy.Subscriber('theta_array', Float32MultiArray, self.callback_theta)
         rospy.Subscriber('/RL_agent/RL_agent_command', String, self.callback_command)
 
         robot = moveit_commander.RobotCommander()
@@ -117,12 +122,12 @@ class MoveGroupPythonIntefaceTutorial(object):
         if req.command == "go_forward":
             print "Go forward"
             self.go_linear(y=self.v_params.in_offset)
-            return ArmCommandResponse("arm move to box position", True)
+            return ArmCommandResponse("went forwards move to box position", True)
 
         if req.command == "go_backward":
             print "Go backword"
             self.go_linear(y=-self.v_params.out_offset)
-            return ArmCommandResponse("arm move to box position", True)
+            return ArmCommandResponse("went backward, ready for episode", True)
 
         if req.command == "read_pos":
             print self.move_group.get_current_pose().pose
@@ -151,11 +156,11 @@ class MoveGroupPythonIntefaceTutorial(object):
 
         return ArmCommandResponse("Wrong Command", False)
 
-    def callback(self, points):
-        self.pointcloud2_to_pcd(points)
-
-    def callback_theta(self, theta):
-        self.theta = np.asarray(theta.data)
+    # def callback(self, points):
+    #     self.pointcloud2_to_pcd(points)
+    #
+    # def callback_theta(self, theta):
+    #     self.theta = np.asarray(theta.data)
 
     def callback_command(self, command):
         self.command = command.data
