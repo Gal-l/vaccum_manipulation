@@ -80,6 +80,10 @@ class RL_agent:
             Warning("There is a bag in the drop action")
             return
 
+        self.command_msg.data = "record_observation_start"
+        resp = self.controller_command_srv(self.command_msg.data)
+        print resp.ans
+
         self.command_msg.data = "perform_episode"
         resp = self.arm_command_srv(self.command_msg.data)
         print resp.ans
@@ -88,6 +92,9 @@ class RL_agent:
             Warning("There is a bag in the episode")
             return
 
+        self.command_msg.data = "record_observation_stop"
+        resp = self.controller_command_srv(self.command_msg.data)
+        print resp.ans
 
         self.command_msg.data = "return"
         resp = self.controller_command_srv(self.command_msg.data)
